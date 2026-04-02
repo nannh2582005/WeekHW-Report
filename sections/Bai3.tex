@@ -1,0 +1,200 @@
+\section{Bài 3. Phát hiện missing token [Cơ bản]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{data.csv} (1 cột), mỗi dòng là một token
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item Token rỗng hoặc chỉ chứa khoảng trắng $\rightarrow$ missing
+            \item Token \texttt{"na"}, \texttt{"nan"}, \texttt{"n/a"} (không phân biệt hoa/thường) $\rightarrow$ missing
+            \item Token \texttt{"0"} $\rightarrow$ \textbf{không phải missing}
+            \item File rỗng $\rightarrow$ không có dòng nào bị missing
+        \end{itemize}
+
+        \item \textbf{Module 1 (Chuẩn hóa token):}
+        \begin{itemize}
+            \item Hàm \texttt{trim(string)}: bỏ khoảng trắng đầu/cuối
+            \item Hàm \texttt{toLowerStr(string)}: chuyển về chữ thường
+        \end{itemize}
+
+        \item \textbf{Module 2 (Kiểm tra missing):}
+        \begin{itemize}
+            \item Hàm \texttt{isMissingToken(string t)}
+            \item Quy trình:
+            \begin{itemize}
+                \item trim $\rightarrow$ tolower
+                \item nếu rỗng hoặc thuộc \{\texttt{na, nan, n/a}\} $\rightarrow$ true
+                \item ngược lại $\rightarrow$ false
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Đọc file \& phát hiện):}
+        \begin{itemize}
+            \item Hàm \texttt{findMissingLines(path, vector<int>\&)}
+            \item Đọc từng dòng bằng \texttt{getline}
+            \item Nếu dòng là missing $\rightarrow$ lưu chỉ số dòng (0-based)
+        \end{itemize}
+
+        \item \textbf{Module 4 (Ghi output):}
+        \begin{itemize}
+            \item Hàm \texttt{writeOutput(path, indices)}
+            \item In danh sách chỉ số dòng bị missing
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Output:}
+    \begin{center}
+    Danh sách chỉ số dòng (0-based) bị missing, phân tách bằng khoảng trắng
+    \end{center}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+using namespace std;
+
+// MODULE: Trim
+string trim(const string& s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    size_t end = s.find_last_not_of(" \t\r\n");
+
+    if (start == string::npos) return "";
+    return s.substr(start, end - start + 1);
+}
+
+// MODULE: To lower
+string toLowerStr(string s) {
+    for (char& c : s) {
+        c = (char)tolower((unsigned char)c);
+    }
+    return s;
+}
+
+// MODULE 1: Check missing token
+bool isMissingToken(string t) {
+    t = trim(t);
+    t = toLowerStr(t);
+
+    if (t.empty()) return true;
+    if (t == "na" || t == "nan" || t == "n/a") return true;
+
+    return false;
+}
+
+// MODULE 2: Read file & detect missing lines
+bool findMissingLines(string path, vector<int>& indices) {
+    ifstream file(path);
+    if (!file.is_open()) return false;
+
+    string line;
+    int idx = 0;
+
+    while (getline(file, line)) {
+        if (isMissingToken(line)) {
+            indices.push_back(idx);
+        }
+        idx++;
+    }
+
+    file.close();
+    return true;
+}
+
+// MODULE 3: Write output
+bool writeOutput(string path, const vector<int>& indices) {
+    ofstream file(path);
+    if (!file.is_open()) return false;
+
+    for (size_t i = 0; i < indices.size(); i++) {
+        file << indices[i];
+        if (i != indices.size() - 1) file << " ";
+    }
+
+    file.close();
+    return true;
+}
+
+// MAIN
+int main() {
+    vector<int> indices;
+
+    if (!findMissingLines("data.csv", indices)) {
+        cerr << "Khong mo duoc file data.csv\n";
+        return 1;
+    }
+
+    if (!writeOutput("output.txt", indices)) {
+        cerr << "Khong ghi duoc file output.txt\n";
+        return 1;
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+10
+NA
+hello
+nan
+N/A
+0
+
+\end{lstlisting}
+
+\textbf{Phân tích:}
+\begin{itemize}
+    \item Missing tại các dòng: 1, 3, 4, 6
+\end{itemize}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+1 3 4 6
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Không có missing)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+1
+2
+3
+abc
+0
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- file rỗng)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+
+\end{lstlisting}

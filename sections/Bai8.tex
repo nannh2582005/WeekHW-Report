@@ -1,0 +1,261 @@
+\section{Lọc dòng theo điều kiện [Trung bình]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{data.csv}: mỗi dòng dạng \texttt{id, value}
+        \item File \texttt{config.txt}: chứa 2 số thực \texttt{lo} và \texttt{hi}
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item Value missing (rỗng, \texttt{NA}/\texttt{NaN}) $\rightarrow$ bỏ (dropped)
+            \item Value không parse được $\rightarrow$ bỏ
+            \item \texttt{lo > hi} $\rightarrow$ không có dòng nào được giữ
+            \item File rỗng $\rightarrow$ output rỗng, \texttt{kept=0}, \texttt{dropped=0}
+        \end{itemize}
+
+        \item \textbf{Module 1 (Chuẩn hóa token):}
+        \begin{itemize}
+            \item \texttt{trim}, \texttt{toLowerStr}, \texttt{isMissingToken}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc config):}
+        \begin{itemize}
+            \item Hàm \texttt{readConfig(path, lo, hi)}
+            \item Parse 2 số thực từ file
+        \end{itemize}
+
+        \item \textbf{Module 3 (Parse CSV):}
+        \begin{itemize}
+            \item \texttt{splitCSV(line, cells)}
+            \item Mỗi dòng phải có đúng 2 cột
+        \end{itemize}
+
+        \item \textbf{Module 4 (Lọc dữ liệu):}
+        \begin{itemize}
+            \item Nếu value hợp lệ và \texttt{lo $\le$ value $\le$ hi} $\rightarrow$ kept
+            \item Ngược lại $\rightarrow$ dropped
+        \end{itemize}
+
+        \item \textbf{Module 5 (Ghi file):}
+        \begin{itemize}
+            \item Ghi \texttt{filtered.csv}: các dòng được giữ
+            \item Cuối file ghi: \texttt{kept=<n> / dropped=<m>}
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Output:}
+    \begin{itemize}
+        \item File \texttt{filtered.csv}
+        \item Dòng cuối:
+        \begin{center}
+        \texttt{kept=<n> / dropped=<m>}
+        \end{center}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+// MODULE: Trim
+string trim(const string& s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    size_t end = s.find_last_not_of(" \t\r\n");
+
+    if (start == string::npos) return "";
+    return s.substr(start, end - start + 1);
+}
+
+// MODULE: To lower
+string toLowerStr(string s) {
+    for (char& c : s) {
+        c = (char)tolower((unsigned char)c);
+    }
+    return s;
+}
+
+// MODULE: Check missing
+bool isMissingToken(string t) {
+    t = toLowerStr(trim(t));
+    return t.empty() || t == "na" || t == "nan";
+}
+
+// MODULE: Parse double
+bool parseDouble(const string& s, double& value) {
+    string t = trim(s);
+    if (t.empty()) return false;
+
+    try {
+        size_t idx;
+        value = stod(t, &idx);
+        return idx == t.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+// MODULE 1: Read config
+bool readConfig(string path, double& lo, double& hi) {
+    ifstream file(path);
+    if (!file.is_open()) return false;
+
+    file >> lo >> hi;
+
+    file.close();
+    return true;
+}
+
+// MODULE 2: Split CSV
+void splitCSV(const string& line, vector<string>& cells) {
+    cells.clear();
+    stringstream ss(line);
+    string cell;
+
+    while (getline(ss, cell, ',')) {
+        cells.push_back(cell);
+    }
+}
+
+// MODULE 3: Filter data
+bool filterData(string inPath, string outPath, double lo, double hi,
+                int& kept, int& dropped) {
+
+    ifstream inFile(inPath);
+    if (!inFile.is_open()) return false;
+
+    ofstream outFile(outPath);
+    if (!outFile.is_open()) return false;
+
+    kept = 0;
+    dropped = 0;
+
+    string line;
+    while (getline(inFile, line)) {
+        if (trim(line).empty()) continue;
+
+        vector<string> cells;
+        splitCSV(line, cells);
+
+        if (cells.size() != 2) {
+            dropped++;
+            continue;
+        }
+
+        string id = trim(cells[0]);
+        string valStr = cells[1];
+
+        if (isMissingToken(valStr)) {
+            dropped++;
+            continue;
+        }
+
+        double value;
+        if (!parseDouble(valStr, value)) {
+            dropped++;
+            continue;
+        }
+
+        if (value >= lo && value <= hi) {
+            outFile << id << "," << value << "\n";
+            kept++;
+        } else {
+            dropped++;
+        }
+    }
+
+    outFile << "kept=" << kept << " / dropped=" << dropped;
+
+    inFile.close();
+    outFile.close();
+    return true;
+}
+
+// MAIN
+int main() {
+    double lo, hi;
+    int kept, dropped;
+
+    if (!readConfig("config.txt", lo, hi)) {
+        cerr << "Khong mo duoc file config.txt\n";
+        return 1;
+    }
+
+    if (!filterData("data.csv", "filtered.csv", lo, hi, kept, dropped)) {
+        cerr << "Loi xu ly file\n";
+        return 1;
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (\texttt{config.txt}):}
+\begin{lstlisting}
+10 20
+\end{lstlisting}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+A,5
+B,10
+C,15
+D,25
+\end{lstlisting}
+
+\textbf{Expected Output (\texttt{filtered.csv}):}
+\begin{lstlisting}
+B,10
+C,15
+kept=2 / dropped=2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Có missing)}
+
+\textbf{Input (\texttt{config.txt}):}
+\begin{lstlisting}
+0 100
+\end{lstlisting}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+A,NA
+B,
+C,50
+D,abc
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+C,50
+kept=1 / dropped=3
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- file rỗng)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+kept=0 / dropped=0
+\end{lstlisting}

@@ -1,0 +1,196 @@
+\section{Đếm từ trong file text [Cơ bản]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+        \item \textbf{Input:} File \texttt{words.txt} gồm nhiều dòng văn bản
+        
+        \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item File rỗng $\rightarrow$ \texttt{total\_words = 0}, \texttt{unique\_words = 0}
+                \item Dòng rỗng hoặc chỉ chứa khoảng trắng $\rightarrow$ không tạo ra từ nào
+            \end{itemize}
+
+            \item \textbf{Module 1 (Đọc file):}
+            \begin{itemize}
+                \item Hàm \texttt{readLines(path, vector<string>\&)}
+                \item Đọc toàn bộ file bằng \texttt{getline}
+            \end{itemize}
+
+            \item \textbf{Module 2 (Tách từ):}
+            \begin{itemize}
+                \item Hàm \texttt{splitWords(line, vector<string>\&)}
+                \item Dùng \texttt{stringstream} để tách từ theo khoảng trắng
+                \item Không normalize: không lowercase, không bỏ dấu câu
+            \end{itemize}
+
+            \item \textbf{Module 3 (Đếm từ):}
+            \begin{itemize}
+                \item \texttt{total\_words}: tổng số từ tách được từ toàn bộ file
+                \item \texttt{unique\_words}: số từ phân biệt
+                \item Dùng \texttt{set<string>} để lưu các từ duy nhất
+            \end{itemize}
+
+            \item \textbf{Module 4 (Ghi file):}
+            \begin{itemize}
+                \item Hàm \texttt{writeOutput(path, total\_words, unique\_words)}
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        \begin{center}
+        \texttt{total\_words=<n> / unique\_words=<m>}
+        \end{center}
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <set>
+
+using namespace std;
+
+// MODULE 1: Read file
+bool readLines(string path, vector<string>& lines) {
+    ifstream file(path);
+    if (!file.is_open()) return false;
+
+    string line;
+    while (getline(file, line)) {
+        lines.push_back(line);
+    }
+
+    file.close();
+    return true;
+}
+
+// MODULE 2: Split words by whitespace
+void splitWords(const string& line, vector<string>& words) {
+    stringstream ss(line);
+    string word;
+
+    while (ss >> word) {
+        words.push_back(word);
+    }
+}
+
+// MODULE 3: Count total and unique words
+void countWords(const vector<string>& lines, int& total_words, int& unique_words) {
+    total_words = 0;
+    unique_words = 0;
+
+    set<string> distinct;
+    vector<string> words;
+
+    for (const string& line : lines) {
+        words.clear();
+        splitWords(line, words);
+
+        for (const string& word : words) {
+            total_words++;
+            distinct.insert(word);
+        }
+    }
+
+    unique_words = (int)distinct.size();
+}
+
+// MODULE 4: Write output
+bool writeOutput(string path, int total_words, int unique_words) {
+    ofstream file(path);
+    if (!file.is_open()) return false;
+
+    file << "total_words=" << total_words
+         << " / unique_words=" << unique_words;
+
+    file.close();
+    return true;
+}
+
+// MAIN
+int main() {
+    vector<string> lines;
+    int total_words, unique_words;
+
+    if (!readLines("words.txt", lines)) {
+        cerr << "Khong mo duoc file words.txt\n";
+        return 1;
+    }
+
+    countWords(lines, total_words, unique_words);
+
+    if (!writeOutput("output.txt", total_words, unique_words)) {
+        cerr << "Khong ghi duoc file output.txt\n";
+        return 1;
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (\texttt{words.txt}):}
+\begin{lstlisting}
+hello world
+hello ChatGPT
+world !
+\end{lstlisting}
+
+\textbf{Phân tích:}
+\begin{itemize}
+    \item Các từ là: \texttt{hello, world, hello, ChatGPT, world, !}
+    \item \texttt{total\_words = 6}
+    \item Các từ duy nhất: \texttt{hello, world, ChatGPT, !}
+    \item \texttt{unique\_words = 4}
+\end{itemize}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+total_words=6 / unique_words=4
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- file rỗng)}
+
+\textbf{Input (\texttt{words.txt}):}
+\begin{lstlisting}
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+total_words=0 / unique_words=0
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Dòng rỗng và nhiều khoảng trắng)}
+
+\textbf{Input (\texttt{words.txt}):}
+\begin{lstlisting}
+apple   banana
+
+   apple
+banana
+\end{lstlisting}
+
+\textbf{Phân tích:}
+\begin{itemize}
+    \item Các từ là: \texttt{apple, banana, apple, banana}
+    \item \texttt{total\_words = 4}
+    \item Từ duy nhất: \texttt{apple, banana}
+    \item \texttt{unique\_words = 2}
+\end{itemize}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+total_words=4 / unique_words=2
+\end{lstlisting}

@@ -1,0 +1,352 @@
+\section{Merge 2 file CSV theo id [Trung bình]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{fileA.csv}: mỗi dòng có dạng \texttt{id, score\_A}
+        \item File \texttt{fileB.csv}: mỗi dòng có dạng \texttt{id, score\_B}
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item Một trong hai file rỗng $\rightarrow$ không join được dòng nào
+            \item Có id chỉ xuất hiện ở đúng một file $\rightarrow$ không ghi vào \texttt{merged.csv}, nhưng vẫn tính vào thống kê \texttt{id\_only\_one}
+            \item Missing được hiểu là ô trống hoặc \texttt{NA}/\texttt{NaN} (không phân biệt hoa/thường); các dòng thiếu dữ liệu hợp lệ sẽ bị bỏ qua
+        \end{itemize}
+
+        \item \textbf{Module 1 (Chuẩn hóa token):}
+        \begin{itemize}
+            \item Hàm \texttt{trim(string)} để bỏ khoảng trắng đầu/cuối
+            \item Hàm \texttt{toLowerStr(string)} để đưa token về chữ thường khi kiểm tra missing
+            \item Hàm \texttt{isMissingToken(string)} để nhận diện ô trống, \texttt{NA}, \texttt{NaN}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Parse 1 dòng CSV):}
+        \begin{itemize}
+            \item Hàm \texttt{parseLine(line, id, score)}
+            \item Tách dòng theo dấu phẩy thành 2 cột: \texttt{id}, \texttt{score}
+            \item Nếu thiếu cột, thiếu dữ liệu, hoặc \texttt{score} không parse được thành số $\rightarrow$ dòng không hợp lệ
+        \end{itemize}
+
+        \item \textbf{Module 3 (Đọc file CSV vào map):}
+        \begin{itemize}
+            \item Hàm \texttt{readCSV(path, map<string, double>\&)}
+            \item Đọc từng dòng bằng \texttt{getline}
+            \item Với mỗi dòng hợp lệ, lưu \texttt{id $\rightarrow$ score}
+            \item Nếu trùng id trong cùng một file thì giữ giá trị xuất hiện sau cùng
+        \end{itemize}
+
+        \item \textbf{Module 4 (Inner Join theo id):}
+        \begin{itemize}
+            \item Duyệt các id của file A
+            \item Nếu id cũng có trong file B $\rightarrow$ đưa vào danh sách kết quả join
+            \item Tính \texttt{diff = score\_A - score\_B}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Đếm thống kê):}
+        \begin{itemize}
+            \item \texttt{joined\_rows}: số id xuất hiện ở cả hai file
+            \item \texttt{id\_only\_one}: số id chỉ xuất hiện ở đúng một file
+            \item Công thức:
+            \[
+                \texttt{id\_only\_one}
+                =
+                |\texttt{A only}| + |\texttt{B only}|
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 6 (Ghi file + in báo cáo):}
+        \begin{itemize}
+            \item Hàm \texttt{writeMerged(path, rows)} ghi file \texttt{merged.csv}
+            \item Định dạng:
+            \[
+                \texttt{id, score\_A, score\_B, diff}
+            \]
+            \item Dùng \texttt{fixed << setprecision(6)} cho số thực
+            \item In ra màn hình:
+            \begin{center}
+                \texttt{joined\_rows=<n> / id\_only\_one=<m>}
+            \end{center}
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Output:}
+    \begin{itemize}
+        \item File \texttt{merged.csv} chứa các dòng inner join:
+        \begin{center}
+            \texttt{id,score\_A,score\_B,diff}
+        \end{center}
+        \item Màn hình in:
+        \begin{center}
+            \texttt{joined\_rows=<n> / id\_only\_one=<m>}
+        \end{center}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <iomanip>
+#include <cctype>
+
+using namespace std;
+
+struct JoinRow {
+    string id;
+    double scoreA;
+    double scoreB;
+    double diff;
+};
+
+// MODULE: Trim string
+string trim(const string& s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    size_t end = s.find_last_not_of(" \t\r\n");
+
+    if (start == string::npos) return "";
+    return s.substr(start, end - start + 1);
+}
+
+// MODULE: To lower
+string toLowerStr(string s) {
+    for (char& c : s) {
+        c = (char)tolower((unsigned char)c);
+    }
+    return s;
+}
+
+// MODULE: Check missing token
+bool isMissingToken(const string& s) {
+    string t = toLowerStr(trim(s));
+    return t.empty() || t == "na" || t == "nan";
+}
+
+// MODULE: Parse double safely
+bool parseDouble(const string& s, double& value) {
+    string t = trim(s);
+    if (t.empty()) return false;
+
+    try {
+        size_t idx;
+        value = stod(t, &idx);
+        return idx == t.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+// MODULE 1: Parse one CSV line -> id, score
+bool parseLine(const string& line, string& id, double& score) {
+    stringstream ss(line);
+    string cell1, cell2, extra;
+
+    if (!getline(ss, cell1, ',')) return false;
+    if (!getline(ss, cell2, ',')) return false;
+
+    // Neu con du cot thi dong khong dung format id,score
+    if (getline(ss, extra, ',')) return false;
+
+    id = trim(cell1);
+    string scoreToken = trim(cell2);
+
+    if (isMissingToken(id) || isMissingToken(scoreToken)) return false;
+    if (!parseDouble(scoreToken, score)) return false;
+
+    return true;
+}
+
+// MODULE 2: Read CSV into map<id, score>
+bool readCSV(string path, map<string, double>& data) {
+    ifstream file(path);
+    if (!file.is_open()) return false;
+
+    string line;
+    while (getline(file, line)) {
+        line = trim(line);
+        if (line.empty()) continue;
+
+        string id;
+        double score;
+
+        if (parseLine(line, id, score)) {
+            data[id] = score; // Neu trung id, giu gia tri xuat hien sau
+        }
+    }
+
+    file.close();
+    return true;
+}
+
+// MODULE 3: Inner join by id
+void innerJoin(const map<string, double>& a,
+               const map<string, double>& b,
+               vector<JoinRow>& rows,
+               int& joined_rows,
+               int& id_only_one) {
+    joined_rows = 0;
+    id_only_one = 0;
+
+    for (map<string, double>::const_iterator it = a.begin(); it != a.end(); ++it) {
+        map<string, double>::const_iterator found = b.find(it->first);
+        if (found != b.end()) {
+            JoinRow row;
+            row.id = it->first;
+            row.scoreA = it->second;
+            row.scoreB = found->second;
+            row.diff = row.scoreA - row.scoreB;
+            rows.push_back(row);
+            joined_rows++;
+        } else {
+            id_only_one++;
+        }
+    }
+
+    for (map<string, double>::const_iterator it = b.begin(); it != b.end(); ++it) {
+        if (a.find(it->first) == a.end()) {
+            id_only_one++;
+        }
+    }
+}
+
+// MODULE 4: Write merged.csv
+bool writeMerged(string path, const vector<JoinRow>& rows) {
+    ofstream file(path);
+    if (!file.is_open()) return false;
+
+    file << "id,score_A,score_B,diff\n";
+    file << fixed << setprecision(6);
+
+    for (size_t i = 0; i < rows.size(); i++) {
+        file << rows[i].id << ","
+             << rows[i].scoreA << ","
+             << rows[i].scoreB << ","
+             << rows[i].diff << "\n";
+    }
+
+    file.close();
+    return true;
+}
+
+// MAIN
+int main() {
+    map<string, double> fileAData;
+    map<string, double> fileBData;
+    vector<JoinRow> rows;
+    int joined_rows = 0;
+    int id_only_one = 0;
+
+    if (!readCSV("fileA.csv", fileAData)) {
+        cerr << "Khong mo duoc file fileA.csv\n";
+        return 1;
+    }
+
+    if (!readCSV("fileB.csv", fileBData)) {
+        cerr << "Khong mo duoc file fileB.csv\n";
+        return 1;
+    }
+
+    innerJoin(fileAData, fileBData, rows, joined_rows, id_only_one);
+
+    if (!writeMerged("merged.csv", rows)) {
+        cerr << "Khong ghi duoc file merged.csv\n";
+        return 1;
+    }
+
+    cout << "joined_rows=" << joined_rows
+         << " / id_only_one=" << id_only_one << "\n";
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (fileA.csv):}
+\begin{lstlisting}
+A01,8.5
+A02,7.0
+A03,9.0
+\end{lstlisting}
+
+\textbf{Input (fileB.csv):}
+\begin{lstlisting}
+A02,6.5
+A03,9.5
+A04,8.0
+\end{lstlisting}
+
+\textbf{Expected Output (merged.csv):}
+\begin{lstlisting}
+id,score_A,score_B,diff
+A02,7.000000,6.500000,0.500000
+A03,9.000000,9.500000,-0.500000
+\end{lstlisting}
+
+\textbf{Expected Console Output:}
+\begin{lstlisting}
+joined_rows=2 / id_only_one=2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- một file rỗng)}
+
+\textbf{Input (fileA.csv):}
+\begin{lstlisting}
+\end{lstlisting}
+
+\textbf{Input (fileB.csv):}
+\begin{lstlisting}
+B01,5.0
+B02,6.0
+\end{lstlisting}
+
+\textbf{Expected Output (merged.csv):}
+\begin{lstlisting}
+id,score_A,score_B,diff
+\end{lstlisting}
+
+\textbf{Expected Console Output:}
+\begin{lstlisting}
+joined_rows=0 / id_only_one=2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Có missing / dòng lỗi)}
+
+\textbf{Input (fileA.csv):}
+\begin{lstlisting}
+A01,8.0
+A02,NA
+A03,9.5
+,7.0
+\end{lstlisting}
+
+\textbf{Input (fileB.csv):}
+\begin{lstlisting}
+A01,7.5
+A03,abc
+A04,6.0
+\end{lstlisting}
+
+\textbf{Expected Output (merged.csv):}
+\begin{lstlisting}
+id,score_A,score_B,diff
+A01,8.000000,7.500000,0.500000
+\end{lstlisting}
+
+\textbf{Expected Console Output:}
+\begin{lstlisting}
+joined_rows=1 / id_only_one=2
+\end{lstlisting}

@@ -1,0 +1,128 @@
+\documentclass[12pt,a4paper]{report}
+
+% ------------------ PACKAGES TỐI GIẢN ------------------
+\usepackage{fontspec}                        % XeLaTeX font support
+\usepackage[english,vietnamese]{babel}      % Language support
+\usepackage{fancyhdr}                        % Fancy headers/footers                 
+\usepackage{amsmath, amsthm, amsfonts}       % Math packages                                       
+\usepackage{setspace}                        % Line spacing
+\usepackage{geometry}                        % Page geometry                        % Clickable TOC and references
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{tocloft}
+\usepackage{titlesec}
+\usepackage{indentfirst}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% --------- Geometry ------------
+\geometry{
+    left=3cm,
+    right=3cm,
+    top=3cm,
+    bottom=3cm
+}                                
+
+%------------PREAMBLE------------
+\renewcommand{\cftchappresnum}{}
+\renewcommand{\cftchapaftersnum}{\quad}
+\setlength{\cftchapnumwidth}{1cm}
+
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\small,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    breaklines=true,
+    frame=single
+}
+
+\setlength{\cftchapnumwidth}{1cm} 
+\setlength{\cftsecnumwidth}{1cm} 
+\setlength{\cftsubsecnumwidth}{1.5cm}
+
+\titleformat{\chapter}
+  {\normalfont\huge\bfseries}  
+  {\thechapter}          
+  {0.6em}                         
+  {}    
+
+\renewcommand{\contentsname}{MỤC LỤC}
+
+
+\setlength{\parindent}{1.5em}
+
+\PassOptionsToPackage{hyphens}{url} % <- thêm dòng này
+\usepackage{hyperref}
+\Urlmuskip=0mu plus 1mu\relax
+
+% ------------------ DOCUMENT ------------------
+\begin{document}
+
+% ------------------ COVER PAGE ------------------
+\begin{titlepage}
+    \centering
+
+    \begin{tikzpicture}[remember picture,overlay]
+    \draw[line width=0.5pt]
+        ([xshift=1cm,yshift=-1cm]current page.north west)
+        rectangle
+        ([xshift=-1cm,yshift=1cm]current page.south east);
+    \end{tikzpicture}
+
+
+    {\Large \textbf{TRƯỜNG ĐẠI HỌC KHOA HỌC TỰ NHIÊN}}\\[0.3cm]
+    {\large \textbf{ĐẠI HỌC QUỐC GIA TP.HCM}}\\[1.8cm]
+
+    \includegraphics[width=8cm]{images/logo.png}\\[0.5cm]
+
+    {\Huge \textbf{BÁO CÁO BÀI TẬP TUẦN}}\\[0.7cm]
+    {\large \textbf{Môn học:} Kỹ thuật lập trình (MTH10107)}\\[1.5cm]
+
+    {\large \textbf{Giảng viên hướng dẫn:} Phạm Thi Vương}\\[1cm]
+
+    {\large \textbf{Nhóm sinh viên thực hiện:}}\\[0.3cm]
+
+    \begin{center}
+    \begin{tabular}{ll}
+        \textbf{Phạm Trần Tấn Phát} & 20280070 \\[5pt]
+        \textbf{Nguyễn Thị Ngọc Anh} & 23280037 \\[5pt]
+        \textbf{Ngô Văn Phước} & 24280041 \\
+    \end{tabular}
+    \end{center}
+
+    \vfill
+
+    {\large TP.HCM, 2025}
+\end{titlepage}
+
+% ----------table of contents ---------
+\renewcommand{\contentsname}{Mục lục}
+\tableofcontents
+\newpage
+
+
+% ---------- Sections ------------
+\chapter{Tuần 1: File I/O + String cơ bản + Pipeline M0}
+\input{sections/Bai1.tex}
+\input{sections/Bai2.tex}
+\input{sections/Bai3.tex}
+\input{sections/Bai4.tex}
+\input{sections/Bai5.tex}
+\input{sections/Bai6.tex}
+\input{sections/Bai7.tex}
+\input{sections/Bai8.tex}
+\input{sections/Bai9.tex}
+\input{sections/Bai10.tex}
+
+\end{document}

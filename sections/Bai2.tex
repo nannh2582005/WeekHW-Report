@@ -1,0 +1,159 @@
+\section{Tách trường CSV 1 hàng [Cơ bản]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+        \item \textbf{Input:} 
+        1 dòng CSV (từ stdin hoặc file), ví dụ:
+        
+        \begin{lstlisting}
+        101, Nguyen Van A, , NA, 88.5
+        \end{lstlisting}
+
+        \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:} 
+            \begin{itemize}
+                \item Dòng rỗng $\rightarrow$ 1 trường rỗng
+                \item Dòng chỉ chứa dấu phẩy $\rightarrow$ 2 trường rỗng
+            \end{itemize}
+            \item \textbf{Module 1 (Trim):} Xóa khoảng trắng đầu/cuối mỗi field
+            \item \textbf{Module 2 (Split CSV):}
+            \begin{itemize}
+            \item Dùng \texttt{stringstream + getline(delimiter=',')}
+            \item Trả về \texttt{vector<string>}
+            \end{itemize}
+                \item \textbf{Module 3 (Output):}
+            \begin{itemize}
+                \item In:
+                \begin{itemize}
+                    \item số trường
+                    \item từng field trên 1 dòng dạng \texttt{'value'}
+                \end{itemize}
+            \end{itemize}
+        \end{itemize}
+        \item \textbf{Output:}
+        \begin{lstlisting}
+            5
+            '101'
+            'Nguyen Van A'
+            ''
+            'NA'
+            '88.5'
+        \end{lstlisting}
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <vector>
+    #include <string>
+    #include <sstream>
+
+    using namespace std;
+
+    // MODULE: Trim
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
+
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
+    }
+
+    // MODULE: Split CSV
+    vector<string> splitCSV(const string& line) {
+        vector<string> result;
+
+        \begin{minted}{cpp}
+        // Case: line is empty
+        \end{minted}
+        if (line.empty()) {
+            result.push_back("");
+            return result;
+        }
+
+        stringstream ss(line);
+        string token;
+
+        while (getline(ss, token, ',')) {
+            result.push_back(trim(token));
+        }
+
+        \begin{minted}{cpp}
+        // Case: line ends with a comma
+        \end{minted}
+        if (!line.empty() && line.back() == ',') {
+            result.push_back("");
+        }
+
+        return result;
+    }
+
+    // MODULE: Output
+    void printResult(const vector<string>& fields) {
+        cout << fields.size() << endl;
+        for (const string& f : fields) {
+            cout << "'" << f << "'" << endl;
+        }
+    }
+
+    // MAIN
+    int main() {
+        string line;
+        getline(cin, line);
+
+        vector<string> fields = splitCSV(line);
+
+        printResult(fields);
+
+        return 0;
+    }
+    \end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường)}
+    \textbf{Input:}
+    \begin{lstlisting}
+    101, KTLT, , NA, 88.5
+    \end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    5
+    '101'
+    'KTLT'
+    ''
+    'NA'
+    '88.5'
+    \end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- dòng rỗng)}
+
+    \textbf{Input:}
+    \begin{lstlisting}
+
+    \end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    1
+    ''
+    \end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 3 (Case biên -- chỉ dấu phẩy)}
+
+    \textbf{Input:}
+    \begin{lstlisting}
+    ,
+    \end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    2
+    ''
+    ''
+    \end{lstlisting}

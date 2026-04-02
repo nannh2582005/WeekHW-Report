@@ -1,0 +1,271 @@
+\section{Thống kê cột số từ CSV [Trung bình]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{data.csv} gồm 1 cột số thực
+        \item Có thể có missing; missing được hiểu là ô trống hoặc \texttt{NA}/\texttt{NaN} (không phân biệt hoa/thường)
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item Toàn bộ dòng đều missing $\rightarrow$ \texttt{count = 0}, \texttt{missing = số dòng}, và \texttt{min/max/mean = N/A}
+            \item File rỗng $\rightarrow$ \texttt{count = 0}, \texttt{missing = 0}, và \texttt{min/max/mean = N/A}
+            \item Chỉ có 1 giá trị hợp lệ $(n = 1)$ $\rightarrow$ \texttt{min = max = mean = giá trị đó}
+        \end{itemize}
+
+        \item \textbf{Module 1 (Chuẩn hóa token):}
+        \begin{itemize}
+            \item Hàm \texttt{trim(string)}: bỏ khoảng trắng đầu/cuối
+            \item Hàm \texttt{toLowerStr(string)}: chuyển về chữ thường
+            \item Hàm \texttt{isMissingToken(string)}: kiểm tra token có phải missing hay không
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc CSV 1 cột):}
+        \begin{itemize}
+            \item Hàm \texttt{readCSV1Col(path, vector<double>\&, int\& missing)}
+            \item Đọc từng dòng bằng \texttt{getline}
+            \item Nếu dòng là missing $\rightarrow$ tăng \texttt{missing}
+            \item Nếu parse được thành số thực $\rightarrow$ đưa vào vector hợp lệ
+            \item Nếu token không phải missing nhưng không parse được thành số $\rightarrow$ bỏ qua để chương trình chạy an toàn
+        \end{itemize}
+
+        \item \textbf{Module 3 (Tính thống kê):}
+        \begin{itemize}
+            \item Hàm \texttt{computeStats(vector<double>)}
+            \item Tính:
+            \begin{itemize}
+                \item \texttt{count}: số giá trị hợp lệ
+                \item \texttt{min}: giá trị nhỏ nhất
+                \item \texttt{max}: giá trị lớn nhất
+                \item \texttt{mean}: trung bình cộng
+            \end{itemize}
+            \item Dùng \texttt{long double} để tích lũy tổng, tránh mất độ chính xác
+        \end{itemize}
+
+        \item \textbf{Module 4 (Ghi output):}
+        \begin{itemize}
+            \item Hàm \texttt{writeOutput(path, stats, missing)}
+            \item Nếu \texttt{count = 0} $\rightarrow$ ghi \texttt{N/A} cho \texttt{min/max/mean}
+            \item Nếu \texttt{count > 0} $\rightarrow$ ghi số thực với \texttt{fixed << setprecision(2)}
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Output:}
+    \begin{center}
+    \texttt{count=<n> / missing=<m> / min=<f> / max=<f> / mean=<f>}
+    \end{center}
+    hoặc nếu không có giá trị hợp lệ:
+    \begin{center}
+    \texttt{count=0 / missing=<m> / min=N/A / max=N/A / mean=N/A}
+    \end{center}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <iomanip>
+
+using namespace std;
+
+struct Stats {
+    int count;
+    double minVal;
+    double maxVal;
+    double mean;
+};
+
+// MODULE: Trim
+string trim(const string& s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    size_t end = s.find_last_not_of(" \t\r\n");
+
+    if (start == string::npos) return "";
+    return s.substr(start, end - start + 1);
+}
+
+// MODULE: To lower
+string toLowerStr(string s) {
+    for (char& c : s) {
+        if ('A' <= c && c <= 'Z') c = c - 'A' + 'a';
+    }
+    return s;
+}
+
+// MODULE: Check missing token
+bool isMissingToken(string t) {
+    t = toLowerStr(trim(t));
+    return t.empty() || t == "na" || t == "nan" || t == "n/a";
+}
+
+// MODULE: Parse double safely
+bool parseDouble(const string& s, double& value) {
+    string t = trim(s);
+    if (t.empty()) return false;
+
+    try {
+        size_t idx;
+        value = stod(t, &idx);
+        return idx == t.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+// MODULE 1: Read CSV 1 column
+bool readCSV1Col(string path, vector<double>& data, int& missing) {
+    ifstream file(path);
+    if (!file.is_open()) return false;
+
+    missing = 0;
+    string line;
+
+    while (getline(file, line)) {
+        if (isMissingToken(line)) {
+            missing++;
+        } else {
+            double value;
+            if (parseDouble(line, value)) {
+                data.push_back(value);
+            }
+        }
+    }
+
+    file.close();
+    return true;
+}
+
+// MODULE 2: Compute stats
+Stats computeStats(const vector<double>& data) {
+    Stats st;
+    st.count = (int)data.size();
+    st.minVal = 0.0;
+    st.maxVal = 0.0;
+    st.mean = 0.0;
+
+    if (data.empty()) return st;
+
+    st.minVal = data[0];
+    st.maxVal = data[0];
+
+    long double sum = 0.0;
+    for (double x : data) {
+        if (x < st.minVal) st.minVal = x;
+        if (x > st.maxVal) st.maxVal = x;
+        sum += x;
+    }
+
+    st.mean = (double)(sum / data.size());
+    return st;
+}
+
+// MODULE 3: Write output
+bool writeOutput(string path, const Stats& st, int missing) {
+    ofstream file(path);
+    if (!file.is_open()) return false;
+
+    file << "count=" << st.count
+         << " / missing=" << missing
+         << " / ";
+
+    if (st.count == 0) {
+        file << "min=N/A / max=N/A / mean=N/A";
+    } else {
+        file << fixed << setprecision(2);
+        file << "min=" << st.minVal
+             << " / max=" << st.maxVal
+             << " / mean=" << st.mean;
+    }
+
+    file.close();
+    return true;
+}
+
+// MAIN
+int main() {
+    vector<double> data;
+    int missing = 0;
+
+    if (!readCSV1Col("data.csv", data, missing)) {
+        cerr << "Khong mo duoc file data.csv\n";
+        return 1;
+    }
+
+    Stats st = computeStats(data);
+
+    if (!writeOutput("output.txt", st, missing)) {
+        cerr << "Khong ghi duoc file output.txt\n";
+        return 1;
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+10
+20.5
+NA
+30
+NaN
+15.5
+\end{lstlisting}
+
+\textbf{Phân tích:}
+\begin{itemize}
+    \item Giá trị hợp lệ: \texttt{10, 20.5, 30, 15.5}
+    \item \texttt{count = 4}
+    \item \texttt{missing = 2}
+    \item \texttt{min = 10.00}
+    \item \texttt{max = 30.00}
+    \item \texttt{mean = (10 + 20.5 + 30 + 15.5)/4 = 19.00}
+\end{itemize}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+count=4 / missing=2 / min=10.00 / max=30.00 / mean=19.00
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- toàn missing)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+NA
+
+nan
+NA
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+count=0 / missing=4 / min=N/A / max=N/A / mean=N/A
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- chỉ có 1 giá trị hợp lệ)}
+
+\textbf{Input (\texttt{data.csv}):}
+\begin{lstlisting}
+NA
+42.5
+NaN
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+count=1 / missing=2 / min=42.50 / max=42.50 / mean=42.50
+\end{lstlisting}

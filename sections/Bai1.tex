@@ -1,0 +1,131 @@
+\section{Đọc và đếm dòng file [Cơ bản]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+        \item \textbf{Input}: File text.txt chứa nhiều dòng (có thể có dòng rỗng, dòng chỉ chứa khoảng trắng)
+        \item \textbf{Xử lý}:
+        \begin{itemize}
+            \item \textbf{Case biên:} File rỗng $\rightarrow$ \texttt{non\_empty = 0}, \texttt{empty = 0}
+            \item \textbf{Module 1 (Đọc file):}
+            \begin{itemize}
+                \item Hàm \texttt{readLines(path, vector<string>\&)}
+                \item Đọc từng dòng bằng \texttt{getline}
+            \end{itemize}
+            \item \textbf{Module 2 (Xử lý):}
+            \begin{itemize}
+                \item Trim mỗi dòng (bỏ khoảng trắng đầu/cuối)
+                \item Nếu sau trim: rỗng $\rightarrow$ \texttt{empty++}; ngược lại $\rightarrow$ \texttt{non\_empty++}
+            \end{itemize}
+            \item \textbf{Module 3 (Ghi file):} Hàm \texttt{writeOutput(path, non\_empty, empty)}
+        \end{itemize}
+        \item \textbf{Output:}
+        \begin{center}
+        \texttt{non\_empty=<n> / empty=<m>}
+        \end{center}
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <algorithm>
+
+    using namespace std;
+
+    // MODULE: Trim string
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
+
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
+    }
+
+    // MODULE 1: Read file
+    bool readLines(string path, vector<string>& lines) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
+
+        string line;
+        while (getline(file, line)) {
+            lines.push_back(line);
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 2: Count lines
+    void countLines(const vector<string>& lines, int& non_empty, int& empty) {
+        non_empty = 0;
+        empty = 0;
+
+        for (const string& line : lines) {
+            string t = trim(line);
+            if (t.empty()) empty++;
+            else non_empty++;
+        }
+    }
+
+    // MODULE 3: Write output
+    bool writeOutput(string path, int non_empty, int empty) {
+        ofstream file(path);
+        if (!file.is_open()) return false;
+
+        file << "non_empty=" << non_empty
+            << " / empty=" << empty;
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<string> lines;
+        int non_empty, empty;
+
+        if (!readLines("text.txt", lines)) {
+            cerr << "Khong mo duoc file text.txt\n";
+            return 1;
+        }
+
+        countLines(lines, non_empty, empty);
+
+        if (!writeOutput("output.txt", non_empty, empty)) {
+            cerr << "Khong ghi duoc file output.txt\n";
+            return 1;
+        }
+
+        return 0;
+    }
+    \end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường)}
+
+    \textbf{Input (text.txt):}
+    \begin{lstlisting}
+    Hello
+
+    World
+    \end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    non_empty=2 / empty=1
+    \end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- file rỗng)}
+
+    \textbf{Input (text.txt):}
+    \begin{lstlisting}
+    \end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    non_empty=0 / empty=0
+    \end{lstlisting}

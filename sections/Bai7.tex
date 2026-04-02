@@ -1,0 +1,208 @@
+\section{Kiểm tra file CSV có header [Cơ bản]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:} File CSV bất kỳ (ví dụ: \texttt{data.csv}), mỗi dòng gồm nhiều cột phân tách bởi dấu phẩy
+    
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item File rỗng $\rightarrow$ \texttt{has\_header=0}
+            \item Dòng đầu rỗng $\rightarrow$ \texttt{has\_header=0}
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc dòng đầu):}
+        \begin{itemize}
+            \item Hàm \texttt{readFirstLine(path, string\&)}
+            \item Đọc dòng đầu tiên bằng \texttt{getline}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Tách CSV):}
+        \begin{itemize}
+            \item Hàm \texttt{splitCSV(line, vector<string>\&)}
+            \item Tách theo dấu phẩy
+        \end{itemize}
+
+        \item \textbf{Module 3 (Kiểm tra số):}
+        \begin{itemize}
+            \item Hàm \texttt{isNumber(string)}
+            \item Nếu \textbf{tất cả cell không parse được thành số} $\rightarrow$ header
+        \end{itemize}
+
+        \item \textbf{Module 4 (Xác định header):}
+        \begin{itemize}
+            \item Nếu mọi cell đều \textbf{không phải số} $\rightarrow$ \texttt{has\_header=1}
+            \item Ngược lại $\rightarrow$ \texttt{has\_header=0}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Ghi output):}
+        \begin{itemize}
+            \item Hàm \texttt{writeOutput(path, has\_header, columns)}
+            \item Nếu có header $\rightarrow$ in thêm danh sách cột
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Output:}
+    \begin{center}
+    \texttt{has\_header=1} hoặc \texttt{has\_header=0}
+    \end{center}
+    Nếu có header:
+    \begin{center}
+    \texttt{columns: col1, col2, ...}
+    \end{center}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <sstream>
+
+using namespace std;
+
+// MODULE: Trim
+string trim(const string& s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    size_t end = s.find_last_not_of(" \t\r\n");
+
+    if (start == string::npos) return "";
+    return s.substr(start, end - start + 1);
+}
+
+// MODULE: Check number
+bool isNumber(const string& s) {
+    if (s.empty()) return false;
+
+    try {
+        size_t idx;
+        stod(s, &idx);
+        return idx == s.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+// MODULE 1: Read first line
+bool readFirstLine(string path, string& line) {
+    ifstream file(path);
+    if (!file.is_open()) return false;
+
+    if (!getline(file, line)) {
+        file.close();
+        return true; // file rong
+    }
+
+    file.close();
+    return true;
+}
+
+// MODULE 2: Split CSV
+void splitCSV(const string& line, vector<string>& cells) {
+    stringstream ss(line);
+    string temp;
+
+    while (getline(ss, temp, ',')) {
+        cells.push_back(trim(temp));
+    }
+}
+
+// MODULE 3: Detect header
+bool detectHeader(const vector<string>& cells) {
+    if (cells.empty()) return false;
+
+    for (const string& c : cells) {
+        if (isNumber(c)) return false;
+    }
+    return true;
+}
+
+// MODULE 4: Write output
+bool writeOutput(string path, bool has_header, const vector<string>& cols) {
+    ofstream file(path);
+    if (!file.is_open()) return false;
+
+    file << "has_header=" << (has_header ? 1 : 0);
+
+    if (has_header) {
+        file << "\ncolumns: ";
+        for (size_t i = 0; i < cols.size(); i++) {
+            file << cols[i];
+            if (i != cols.size() - 1) file << ", ";
+        }
+    }
+
+    file.close();
+    return true;
+}
+
+// MAIN
+int main() {
+    string line;
+    vector<string> cells;
+
+    if (!readFirstLine("data.csv", line)) {
+        cerr << "Khong mo duoc file data.csv\n";
+        return 1;
+    }
+
+    if (!line.empty()) {
+        splitCSV(line, cells);
+    }
+
+    bool has_header = detectHeader(cells);
+
+    if (!writeOutput("output.txt", has_header, cells)) {
+        cerr << "Khong ghi duoc file output.txt\n";
+        return 1;
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường -- có header)}
+
+\textbf{Input (data.csv):}
+\begin{lstlisting}
+name, age, score
+Alice, 20, 8.5
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+has_header=1
+columns: name, age, score
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Không có header)}
+
+\textbf{Input (data.csv):}
+\begin{lstlisting}
+1, 2, 3
+4, 5, 6
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+has_header=0
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- file rỗng)}
+
+\textbf{Input (data.csv):}
+\begin{lstlisting}
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+has_header=0
+\end{lstlisting}
