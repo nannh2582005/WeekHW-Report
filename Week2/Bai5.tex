@@ -1,0 +1,241 @@
+\section{Đạo hàm đa thức [Trung bình]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+    \item \textbf{Input:}
+        \begin{itemize}
+            \item File \texttt{poly.csv} chứa 1 dòng: \texttt{degree, a0, a1, ..., an}.
+            \item File \texttt{x\_values.csv} chứa các giá trị $x$ cần tính đạo hàm (mỗi dòng 1 số).
+        \end{itemize}
+
+    \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item \texttt{degree = 0} $\rightarrow$ Đa thức hằng $P(x) = a_0$. Đạo hàm $P'(x) = 0$ (bậc 0, hệ số 0).
+                \item Giá trị khuyết (\texttt{NA}, \texttt{NaN}) trong file hệ số $\rightarrow$ coi là 0. Trong file $x$ $\rightarrow$ bỏ qua.
+            \end{itemize}
+            
+            \item \textbf{Module 1 (Đọc dữ liệu):}
+            \begin{itemize}
+                \item Tái sử dụng logic đọc mảng hệ số phân tách bằng dấu phẩy và đọc mảng $x$ từng dòng (đã xử lý missing values).
+            \end{itemize}
+
+            \item \textbf{Module 2 (Tính hệ số đạo hàm):}
+            \begin{itemize}
+                \item Hàm \texttt{computeDerivCoeffs(vector<double> a)}
+                \item Áp dụng công thức: \texttt{deriv[i] = (i + 1) * a[i + 1]} với $i$ chạy từ $0$ đến $n-1$.
+                \item Nếu mảng \texttt{a} có kích thước $\le 1$ (tương đương \texttt{degree = 0}), trả về mảng con chỉ chứa \texttt{\{0.0\}}.
+            \end{itemize}
+            
+            \item \textbf{Module 3 (Tính giá trị đa thức):}
+            \begin{itemize}
+                \item Tái sử dụng hàm \texttt{evalHorner} để tính $P'(x)$ tại các điểm $x$ dựa trên mảng hệ số đạo hàm vừa tìm được.
+            \end{itemize}
+
+            \item \textbf{Module 4 (Ghi outputs):}
+            \begin{itemize}
+                \item Hàm \texttt{writeDerivative(path, vector<double> deriv)}: Ghi file \texttt{derivative.csv} định dạng \texttt{degree\_deriv, b0, b1...}
+                \item Hàm \texttt{writeOutput(path, vector<double> x\_vals, vector<double> deriv)}: Ghi file \texttt{output.csv} định dạng \texttt{x,P'(x)}.
+                \item Tuân thủ quy định dùng \texttt{fixed} và \texttt{setprecision(6)}.
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        \begin{itemize}
+            \item File \texttt{derivative.csv}
+            \item File \texttt{output.csv}
+        \end{itemize}
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}[language=C++, breaklines=true]
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <sstream>
+    #include <iomanip>
+
+    using namespace std;
+
+    // MODULE 1: Doc da thuc tu file poly.csv
+    bool readPoly(string path, int& degree, vector<double>& a) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        string line;
+        if (getline(file, line)) {
+            stringstream ss(line);
+            string token;
+            
+            if (getline(ss, token, ',')) {
+                degree = stoi(token);
+            }
+            
+            while (getline(ss, token, ',')) {
+                if (token == "NA" || token == "NaN" || 
+                    token == "nan" || token.empty()) {
+                    a.push_back(0.0);
+                } else {
+                    a.push_back(stod(token));
+                }
+            }
+        }
+        file.close();
+        return true;
+    }
+
+    // MODULE 2: Doc cac diem x tu x_values.csv
+    bool readXValues(string path, vector<double>& x_vals) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            if (line.empty() || line == "NA" || line == "NaN" || line == "nan") {
+                continue; 
+            }
+            x_vals.push_back(stod(line));
+        }
+        file.close();
+        return true;
+    }
+
+    // MODULE 3: Tinh he so da thuc dao ham
+    vector<double> computeDerivCoeffs(const vector<double>& a) {
+        vector<double> deriv;
+        
+        // Case bien: da thuc hang (bac 0) -> dao ham = 0
+        if (a.size() <= 1) {
+            deriv.push_back(0.0);
+            return deriv;
+        }
+        
+        // Cong thuc: b[i] = (i + 1) * a[i + 1]
+        for (size_t i = 0; i < a.size() - 1; i++) {
+            deriv.push_back((i + 1) * a[i + 1]);
+        }
+        
+        return deriv;
+    }
+
+    // MODULE 4: Tinh gia tri da thuc bang Horner
+    double evalHorner(const vector<double>& a, double x) {
+        if (a.empty()) return 0.0;
+        
+        int n = a.size() - 1;
+        double res = a[n];
+        for (int i = n - 1; i >= 0; i--) {
+            res = res * x + a[i];
+        }
+        return res;
+    }
+
+    // MODULE 5: Ghi file derivative.csv
+    bool writeDerivative(string path, const vector<double>& deriv) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        int degree_deriv = deriv.empty() ? 0 : deriv.size() - 1;
+        file << degree_deriv;
+        
+        file << fixed << setprecision(6);
+        for (double coeff : deriv) {
+            file << "," << coeff;
+        }
+        file << "\n";
+        
+        file.close();
+        return true;
+    }
+
+    // MODULE 6: Ghi file output.csv
+    bool writeOutput(string path, const vector<double>& x_vals, const vector<double>& deriv) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        file << "x,P'(x)\n";
+        file << fixed << setprecision(6);
+        
+        for (double x : x_vals) {
+            double px_prime = evalHorner(deriv, x);
+            file << x << "," << px_prime << "\n";
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        int degree = 0;
+        vector<double> a;
+        vector<double> x_vals;
+
+        if (!readPoly("poly.csv", degree, a)) return 1;
+        if (!readXValues("x_values.csv", x_vals)) return 1;
+
+        vector<double> deriv = computeDerivCoeffs(a);
+
+        if (!writeDerivative("derivative.csv", deriv)) return 1;
+        if (!writeOutput("output.csv", x_vals, deriv)) return 1;
+
+        return 0;
+    }
+    \end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường - Bậc 3)}
+    
+    $P(x) = 1 + 2x + 3x^2 + 4x^3 \Rightarrow P'(x) = 2 + 6x + 12x^2$
+    
+    \textbf{Input (poly.csv):}
+    \begin{lstlisting}
+    3,1.0,2.0,3.0,4.0\end{lstlisting}
+    \textbf{Input (x\_values.csv):}
+    \begin{lstlisting}
+    1.0
+    -1.0\end{lstlisting}
+    
+    \textbf{Expected Output (derivative.csv):}
+    \begin{lstlisting}
+    2,2.000000,6.000000,12.000000\end{lstlisting}
+    \textbf{Expected Output (output.csv):}
+    \begin{lstlisting}[language={}]
+    x,P'(x)
+    1.000000,20.000000
+    -1.000000,8.000000\end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- Đa thức hằng, degree = 0)}
+    
+    $P(x) = 5.5 \Rightarrow P'(x) = 0$
+    
+    \textbf{Input (poly.csv):}
+    \begin{lstlisting}
+    0,5.5\end{lstlisting}
+    \textbf{Input (x\_values.csv):}
+    \begin{lstlisting}
+    10.0\end{lstlisting}
+    
+    \textbf{Expected Output (derivative.csv):}
+    \begin{lstlisting}
+    0,0.000000\end{lstlisting}
+    \textbf{Expected Output (output.csv):}
+    \begin{lstlisting}[language={}]
+    x,P'(x)
+    10.000000,0.000000\end{lstlisting} 

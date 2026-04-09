@@ -46,91 +46,91 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <sstream>
-#include <set>
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <sstream>
+    #include <set>
 
-using namespace std;
+    using namespace std;
 
-// MODULE 1: Read file
-bool readLines(string path, vector<string>& lines) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
+    // MODULE 1: Read file
+    bool readLines(string path, vector<string>& lines) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
 
-    string line;
-    while (getline(file, line)) {
-        lines.push_back(line);
+        string line;
+        while (getline(file, line)) {
+            lines.push_back(line);
+        }
+
+        file.close();
+        return true;
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 2: Split words by whitespace
+    void splitWords(const string& line, vector<string>& words) {
+        stringstream ss(line);
+        string word;
 
-// MODULE 2: Split words by whitespace
-void splitWords(const string& line, vector<string>& words) {
-    stringstream ss(line);
-    string word;
-
-    while (ss >> word) {
-        words.push_back(word);
-    }
-}
-
-// MODULE 3: Count total and unique words
-void countWords(const vector<string>& lines, int& total_words, int& unique_words) {
-    total_words = 0;
-    unique_words = 0;
-
-    set<string> distinct;
-    vector<string> words;
-
-    for (const string& line : lines) {
-        words.clear();
-        splitWords(line, words);
-
-        for (const string& word : words) {
-            total_words++;
-            distinct.insert(word);
+        while (ss >> word) {
+            words.push_back(word);
         }
     }
 
-    unique_words = (int)distinct.size();
-}
+    // MODULE 3: Count total and unique words
+    void countWords(const vector<string>& lines, int& total_words, int& unique_words) {
+        total_words = 0;
+        unique_words = 0;
 
-// MODULE 4: Write output
-bool writeOutput(string path, int total_words, int unique_words) {
-    ofstream file(path);
-    if (!file.is_open()) return false;
+        set<string> distinct;
+        vector<string> words;
 
-    file << "total_words=" << total_words
-         << " / unique_words=" << unique_words;
+        for (const string& line : lines) {
+            words.clear();
+            splitWords(line, words);
 
-    file.close();
-    return true;
-}
+            for (const string& word : words) {
+                total_words++;
+                distinct.insert(word);
+            }
+        }
 
-// MAIN
-int main() {
-    vector<string> lines;
-    int total_words, unique_words;
-
-    if (!readLines("words.txt", lines)) {
-        cerr << "Khong mo duoc file words.txt\n";
-        return 1;
+        unique_words = (int)distinct.size();
     }
 
-    countWords(lines, total_words, unique_words);
+    // MODULE 4: Write output
+    bool writeOutput(string path, int total_words, int unique_words) {
+        ofstream file(path);
+        if (!file.is_open()) return false;
 
-    if (!writeOutput("output.txt", total_words, unique_words)) {
-        cerr << "Khong ghi duoc file output.txt\n";
-        return 1;
+        file << "total_words=" << total_words
+            << " / unique_words=" << unique_words;
+
+        file.close();
+        return true;
     }
 
-    return 0;
-}
+    // MAIN
+    int main() {
+        vector<string> lines;
+        int total_words, unique_words;
+
+        if (!readLines("words.txt", lines)) {
+            cerr << "Khong mo duoc file words.txt\n";
+            return 1;
+        }
+
+        countWords(lines, total_words, unique_words);
+
+        if (!writeOutput("output.txt", total_words, unique_words)) {
+            cerr << "Khong ghi duoc file output.txt\n";
+            return 1;
+        }
+
+        return 0;
+    }
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
@@ -141,21 +141,11 @@ int main() {
 \textbf{Input (\texttt{words.txt}):}
 \begin{lstlisting}
 hello world
-hello ChatGPT
-world !
-\end{lstlisting}
-
-\textbf{Phân tích:}
-\begin{itemize}
-    \item Các từ là: \texttt{hello, world, ky, thuat, lap, trinh, !}
-    \item \texttt{total\_words = 6}
-    \item Các từ duy nhất: \texttt{hello, world, ky, thuat, lap, trinh, !}
-    \item \texttt{unique\_words = 7}
-\end{itemize}
+world !\end{lstlisting}
 
 \textbf{Expected Output:}
 \begin{lstlisting}
-total_words=6 / unique_words=7
+total_words=4 / unique_words=3
 \end{lstlisting}
 
 \vspace{0.5cm}
@@ -182,14 +172,6 @@ apple   banana
    apple
 banana
 \end{lstlisting}
-
-\textbf{Phân tích:}
-\begin{itemize}
-    \item Các từ là: \texttt{apple, banana, apple, banana}
-    \item \texttt{total\_words = 4}
-    \item Từ duy nhất: \texttt{apple, banana}
-    \item \texttt{unique\_words = 2}
-\end{itemize}
 
 \textbf{Expected Output:}
 \begin{lstlisting}

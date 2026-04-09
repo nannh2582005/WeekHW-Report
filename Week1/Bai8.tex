@@ -60,144 +60,144 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <string>
+    #include <iostream>
+    #include <fstream>
+    #include <sstream>
+    #include <vector>
+    #include <string>
 
-using namespace std;
+    using namespace std;
 
-// MODULE: Trim
-string trim(const string& s) {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    size_t end = s.find_last_not_of(" \t\r\n");
+    // MODULE: Trim
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
 
-    if (start == string::npos) return "";
-    return s.substr(start, end - start + 1);
-}
-
-// MODULE: To lower
-string toLowerStr(string s) {
-    for (char& c : s) {
-        c = (char)tolower((unsigned char)c);
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
     }
-    return s;
-}
 
-// MODULE: Check missing
-bool isMissingToken(string t) {
-    t = toLowerStr(trim(t));
-    return t.empty() || t == "na" || t == "nan";
-}
-
-// MODULE: Parse double
-bool parseDouble(const string& s, double& value) {
-    string t = trim(s);
-    if (t.empty()) return false;
-
-    try {
-        size_t idx;
-        value = stod(t, &idx);
-        return idx == t.size();
-    } catch (...) {
-        return false;
+    // MODULE: To lower
+    string toLowerStr(string s) {
+        for (char& c : s) {
+            c = (char)tolower((unsigned char)c);
+        }
+        return s;
     }
-}
 
-// MODULE 1: Read config
-bool readConfig(string path, double& lo, double& hi) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
-
-    file >> lo >> hi;
-
-    file.close();
-    return true;
-}
-
-// MODULE 2: Split CSV
-void splitCSV(const string& line, vector<string>& cells) {
-    cells.clear();
-    stringstream ss(line);
-    string cell;
-
-    while (getline(ss, cell, ',')) {
-        cells.push_back(cell);
+    // MODULE: Check missing
+    bool isMissingToken(string t) {
+        t = toLowerStr(trim(t));
+        return t.empty() || t == "na" || t == "nan";
     }
-}
 
-// MODULE 3: Filter data
-bool filterData(string inPath, string outPath, double lo, double hi,
-                int& kept, int& dropped) {
+    // MODULE: Parse double
+    bool parseDouble(const string& s, double& value) {
+        string t = trim(s);
+        if (t.empty()) return false;
 
-    ifstream inFile(inPath);
-    if (!inFile.is_open()) return false;
-
-    ofstream outFile(outPath);
-    if (!outFile.is_open()) return false;
-
-    kept = 0;
-    dropped = 0;
-
-    string line;
-    while (getline(inFile, line)) {
-        if (trim(line).empty()) continue;
-
-        vector<string> cells;
-        splitCSV(line, cells);
-
-        if (cells.size() != 2) {
-            dropped++;
-            continue;
-        }
-
-        string id = trim(cells[0]);
-        string valStr = cells[1];
-
-        if (isMissingToken(valStr)) {
-            dropped++;
-            continue;
-        }
-
-        double value;
-        if (!parseDouble(valStr, value)) {
-            dropped++;
-            continue;
-        }
-
-        if (value >= lo && value <= hi) {
-            outFile << id << "," << value << "\n";
-            kept++;
-        } else {
-            dropped++;
+        try {
+            size_t idx;
+            value = stod(t, &idx);
+            return idx == t.size();
+        } catch (...) {
+            return false;
         }
     }
 
-    outFile << "kept=" << kept << " / dropped=" << dropped;
+    // MODULE 1: Read config
+    bool readConfig(string path, double& lo, double& hi) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
 
-    inFile.close();
-    outFile.close();
-    return true;
-}
+        file >> lo >> hi;
 
-// MAIN
-int main() {
-    double lo, hi;
-    int kept, dropped;
-
-    if (!readConfig("config.txt", lo, hi)) {
-        cerr << "Khong mo duoc file config.txt\n";
-        return 1;
+        file.close();
+        return true;
     }
 
-    if (!filterData("data.csv", "filtered.csv", lo, hi, kept, dropped)) {
-        cerr << "Loi xu ly file\n";
-        return 1;
+    // MODULE 2: Split CSV
+    void splitCSV(const string& line, vector<string>& cells) {
+        cells.clear();
+        stringstream ss(line);
+        string cell;
+
+        while (getline(ss, cell, ',')) {
+            cells.push_back(cell);
+        }
     }
 
-    return 0;
-}
+    // MODULE 3: Filter data
+    bool filterData(string inPath, string outPath, double lo, double hi,
+                    int& kept, int& dropped) {
+
+        ifstream inFile(inPath);
+        if (!inFile.is_open()) return false;
+
+        ofstream outFile(outPath);
+        if (!outFile.is_open()) return false;
+
+        kept = 0;
+        dropped = 0;
+
+        string line;
+        while (getline(inFile, line)) {
+            if (trim(line).empty()) continue;
+
+            vector<string> cells;
+            splitCSV(line, cells);
+
+            if (cells.size() != 2) {
+                dropped++;
+                continue;
+            }
+
+            string id = trim(cells[0]);
+            string valStr = cells[1];
+
+            if (isMissingToken(valStr)) {
+                dropped++;
+                continue;
+            }
+
+            double value;
+            if (!parseDouble(valStr, value)) {
+                dropped++;
+                continue;
+            }
+
+            if (value >= lo && value <= hi) {
+                outFile << id << "," << value << "\n";
+                kept++;
+            } else {
+                dropped++;
+            }
+        }
+
+        outFile << "kept=" << kept << " / dropped=" << dropped;
+
+        inFile.close();
+        outFile.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        double lo, hi;
+        int kept, dropped;
+
+        if (!readConfig("config.txt", lo, hi)) {
+            cerr << "Khong mo duoc file config.txt\n";
+            return 1;
+        }
+
+        if (!filterData("data.csv", "filtered.csv", lo, hi, kept, dropped)) {
+            cerr << "Loi xu ly file\n";
+            return 1;
+        }
+
+        return 0;
+    }
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}

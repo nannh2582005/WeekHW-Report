@@ -88,183 +88,183 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <map>
-#include <iomanip>
-#include <cctype>
+    #include <iostream>
+    #include <fstream>
+    #include <sstream>
+    #include <string>
+    #include <vector>
+    #include <map>
+    #include <iomanip>
+    #include <cctype>
 
-using namespace std;
+    using namespace std;
 
-struct JoinRow {
-    string id;
-    double scoreA;
-    double scoreB;
-    double diff;
-};
-
-// MODULE: Trim string
-string trim(const string& s) {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    size_t end = s.find_last_not_of(" \t\r\n");
-
-    if (start == string::npos) return "";
-    return s.substr(start, end - start + 1);
-}
-
-// MODULE: To lower
-string toLowerStr(string s) {
-    for (char& c : s) {
-        c = (char)tolower((unsigned char)c);
-    }
-    return s;
-}
-
-// MODULE: Check missing token
-bool isMissingToken(const string& s) {
-    string t = toLowerStr(trim(s));
-    return t.empty() || t == "na" || t == "nan";
-}
-
-// MODULE: Parse double safely
-bool parseDouble(const string& s, double& value) {
-    string t = trim(s);
-    if (t.empty()) return false;
-
-    try {
-        size_t idx;
-        value = stod(t, &idx);
-        return idx == t.size();
-    } catch (...) {
-        return false;
-    }
-}
-
-// MODULE 1: Parse one CSV line -> id, score
-bool parseLine(const string& line, string& id, double& score) {
-    stringstream ss(line);
-    string cell1, cell2, extra;
-
-    if (!getline(ss, cell1, ',')) return false;
-    if (!getline(ss, cell2, ',')) return false;
-
-    // Neu con du cot thi dong khong dung format id,score
-    if (getline(ss, extra, ',')) return false;
-
-    id = trim(cell1);
-    string scoreToken = trim(cell2);
-
-    if (isMissingToken(id) || isMissingToken(scoreToken)) return false;
-    if (!parseDouble(scoreToken, score)) return false;
-
-    return true;
-}
-
-// MODULE 2: Read CSV into map<id, score>
-bool readCSV(string path, map<string, double>& data) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
-
-    string line;
-    while (getline(file, line)) {
-        line = trim(line);
-        if (line.empty()) continue;
-
+    struct JoinRow {
         string id;
-        double score;
+        double scoreA;
+        double scoreB;
+        double diff;
+    };
 
-        if (parseLine(line, id, score)) {
-            data[id] = score; // Neu trung id, giu gia tri xuat hien sau
+    // MODULE: Trim string
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
+
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
+    }
+
+    // MODULE: To lower
+    string toLowerStr(string s) {
+        for (char& c : s) {
+            c = (char)tolower((unsigned char)c);
+        }
+        return s;
+    }
+
+    // MODULE: Check missing token
+    bool isMissingToken(const string& s) {
+        string t = toLowerStr(trim(s));
+        return t.empty() || t == "na" || t == "nan";
+    }
+
+    // MODULE: Parse double safely
+    bool parseDouble(const string& s, double& value) {
+        string t = trim(s);
+        if (t.empty()) return false;
+
+        try {
+            size_t idx;
+            value = stod(t, &idx);
+            return idx == t.size();
+        } catch (...) {
+            return false;
         }
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 1: Parse one CSV line -> id, score
+    bool parseLine(const string& line, string& id, double& score) {
+        stringstream ss(line);
+        string cell1, cell2, extra;
 
-// MODULE 3: Inner join by id
-void innerJoin(const map<string, double>& a,
-               const map<string, double>& b,
-               vector<JoinRow>& rows,
-               int& joined_rows,
-               int& id_only_one) {
-    joined_rows = 0;
-    id_only_one = 0;
+        if (!getline(ss, cell1, ',')) return false;
+        if (!getline(ss, cell2, ',')) return false;
 
-    for (map<string, double>::const_iterator it = a.begin(); it != a.end(); ++it) {
-        map<string, double>::const_iterator found = b.find(it->first);
-        if (found != b.end()) {
-            JoinRow row;
-            row.id = it->first;
-            row.scoreA = it->second;
-            row.scoreB = found->second;
-            row.diff = row.scoreA - row.scoreB;
-            rows.push_back(row);
-            joined_rows++;
-        } else {
-            id_only_one++;
+        // Neu con du cot thi dong khong dung format id,score
+        if (getline(ss, extra, ',')) return false;
+
+        id = trim(cell1);
+        string scoreToken = trim(cell2);
+
+        if (isMissingToken(id) || isMissingToken(scoreToken)) return false;
+        if (!parseDouble(scoreToken, score)) return false;
+
+        return true;
+    }
+
+    // MODULE 2: Read CSV into map<id, score>
+    bool readCSV(string path, map<string, double>& data) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
+
+        string line;
+        while (getline(file, line)) {
+            line = trim(line);
+            if (line.empty()) continue;
+
+            string id;
+            double score;
+
+            if (parseLine(line, id, score)) {
+                data[id] = score; // Neu trung id, giu gia tri xuat hien sau
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 3: Inner join by id
+    void innerJoin(const map<string, double>& a,
+                const map<string, double>& b,
+                vector<JoinRow>& rows,
+                int& joined_rows,
+                int& id_only_one) {
+        joined_rows = 0;
+        id_only_one = 0;
+
+        for (map<string, double>::const_iterator it = a.begin(); it != a.end(); ++it) {
+            map<string, double>::const_iterator found = b.find(it->first);
+            if (found != b.end()) {
+                JoinRow row;
+                row.id = it->first;
+                row.scoreA = it->second;
+                row.scoreB = found->second;
+                row.diff = row.scoreA - row.scoreB;
+                rows.push_back(row);
+                joined_rows++;
+            } else {
+                id_only_one++;
+            }
+        }
+
+        for (map<string, double>::const_iterator it = b.begin(); it != b.end(); ++it) {
+            if (a.find(it->first) == a.end()) {
+                id_only_one++;
+            }
         }
     }
 
-    for (map<string, double>::const_iterator it = b.begin(); it != b.end(); ++it) {
-        if (a.find(it->first) == a.end()) {
-            id_only_one++;
+    // MODULE 4: Write merged.csv
+    bool writeMerged(string path, const vector<JoinRow>& rows) {
+        ofstream file(path);
+        if (!file.is_open()) return false;
+
+        file << "id,score_A,score_B,diff\n";
+        file << fixed << setprecision(6);
+
+        for (size_t i = 0; i < rows.size(); i++) {
+            file << rows[i].id << ","
+                << rows[i].scoreA << ","
+                << rows[i].scoreB << ","
+                << rows[i].diff << "\n";
         }
-    }
-}
 
-// MODULE 4: Write merged.csv
-bool writeMerged(string path, const vector<JoinRow>& rows) {
-    ofstream file(path);
-    if (!file.is_open()) return false;
-
-    file << "id,score_A,score_B,diff\n";
-    file << fixed << setprecision(6);
-
-    for (size_t i = 0; i < rows.size(); i++) {
-        file << rows[i].id << ","
-             << rows[i].scoreA << ","
-             << rows[i].scoreB << ","
-             << rows[i].diff << "\n";
+        file.close();
+        return true;
     }
 
-    file.close();
-    return true;
-}
+    // MAIN
+    int main() {
+        map<string, double> fileAData;
+        map<string, double> fileBData;
+        vector<JoinRow> rows;
+        int joined_rows = 0;
+        int id_only_one = 0;
 
-// MAIN
-int main() {
-    map<string, double> fileAData;
-    map<string, double> fileBData;
-    vector<JoinRow> rows;
-    int joined_rows = 0;
-    int id_only_one = 0;
+        if (!readCSV("fileA.csv", fileAData)) {
+            cerr << "Khong mo duoc file fileA.csv\n";
+            return 1;
+        }
 
-    if (!readCSV("fileA.csv", fileAData)) {
-        cerr << "Khong mo duoc file fileA.csv\n";
-        return 1;
+        if (!readCSV("fileB.csv", fileBData)) {
+            cerr << "Khong mo duoc file fileB.csv\n";
+            return 1;
+        }
+
+        innerJoin(fileAData, fileBData, rows, joined_rows, id_only_one);
+
+        if (!writeMerged("merged.csv", rows)) {
+            cerr << "Khong ghi duoc file merged.csv\n";
+            return 1;
+        }
+
+        cout << "joined_rows=" << joined_rows
+            << " / id_only_one=" << id_only_one << "\n";
+
+        return 0;
     }
-
-    if (!readCSV("fileB.csv", fileBData)) {
-        cerr << "Khong mo duoc file fileB.csv\n";
-        return 1;
-    }
-
-    innerJoin(fileAData, fileBData, rows, joined_rows, id_only_one);
-
-    if (!writeMerged("merged.csv", rows)) {
-        cerr << "Khong ghi duoc file merged.csv\n";
-        return 1;
-    }
-
-    cout << "joined_rows=" << joined_rows
-         << " / id_only_one=" << id_only_one << "\n";
-
-    return 0;
-}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}

@@ -1,0 +1,274 @@
+\section{Impute missing bằng median [Trung bình]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{data.csv} chứa mảng số thực có missing (\texttt{NA}, \texttt{NaN}, hoặc dòng trống).
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Quy ước missing:}
+        \begin{itemize}
+            \item Dòng trống hoặc \texttt{NA}/\texttt{NaN} (không phân biệt hoa thường) được xem là missing.
+            \item Không dùng \texttt{-1} làm missing.
+        \end{itemize}
+
+        \item \textbf{Cách tính median:}
+        \begin{itemize}
+            \item Lấy các giá trị hợp lệ, sắp xếp tăng dần.
+            \item Nếu số phần tử hợp lệ lẻ $\rightarrow$ median là phần tử giữa.
+            \item Nếu số phần tử hợp lệ chẵn $\rightarrow$ median là trung bình của 2 phần tử giữa.
+            \item Nếu không có giá trị hợp lệ nào $\rightarrow$ median = 0.
+        \end{itemize}
+
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item File rỗng $\rightarrow$ \texttt{count\_valid = 0}, \texttt{count\_missing = 0}, \texttt{median = 0}.
+            \item Tất cả phần tử đều missing $\rightarrow$ mọi giá trị impute bằng 0.
+        \end{itemize}
+
+        \item \textbf{Module 1 (Hỗ trợ xử lý chuỗi):}
+        \begin{itemize}
+            \item Hàm \texttt{trim} để xóa khoảng trắng đầu/cuối.
+            \item Hàm \texttt{toLowerStr} để đưa chuỗi về chữ thường.
+            \item Hàm \texttt{isMissingToken} để kiểm tra missing.
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc dữ liệu):} Hàm \texttt{loadData}. Đọc từng dòng, lưu lại trạng thái missing và danh sách giá trị hợp lệ. Bắt lỗi mở file (\texttt{return false}).
+        \item \textbf{Module 3 (Tính median):} Hàm \texttt{getMedian}.
+        \item \textbf{Module 4 (Ghi output):} Hàm \texttt{writeOutput} ghi file \texttt{output.csv}.
+        \item \textbf{Module 5 (Ghi summary):} Hàm \texttt{writeSummary} ghi file \texttt{summary.txt}.
+    \end{itemize}
+
+    \item \textbf{Output:}
+    \begin{itemize}
+        \item File \texttt{output.csv}
+\begin{lstlisting}
+i,value_imputed
+\end{lstlisting}
+        \item File \texttt{summary.txt}
+\begin{lstlisting}
+count_valid=<i>
+count_missing=<i>
+median=<f>
+\end{lstlisting}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}[language=C++, breaklines=true]
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <algorithm>
+    #include <iomanip>
+    #include <cctype>
+
+    using namespace std;
+
+    struct DataNode {
+        double value;
+        bool isMissing;
+    };
+
+    // MODULE: Trim
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
+
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
+    }
+
+    // MODULE: ToLower
+    string toLowerStr(string s) {
+        for (char& c : s) {
+            c = (char)tolower((unsigned char)c);
+        }
+        return s;
+    }
+
+    // MODULE 1: Kiem tra missing token
+    bool isMissingToken(string t) {
+        t = trim(t);
+        t = toLowerStr(t);
+
+        if (t.empty()) return true;
+        return (t == "na" || t == "nan");
+    }
+
+    // MODULE 2: Doc du lieu tu file
+    bool loadData(string path, vector<DataNode>& data, vector<double>& valid) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            if (isMissingToken(line)) {
+                data.push_back({0.0, true});
+            } else {
+                double val = stod(trim(line));
+                data.push_back({val, false});
+                valid.push_back(val);
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 3: Tinh median
+    double getMedian(vector<double> valid) {
+        if (valid.empty()) return 0.0;
+
+        sort(valid.begin(), valid.end());
+        int n = (int)valid.size();
+
+        if (n % 2 == 1) return valid[n / 2];
+        return (valid[n / 2 - 1] + valid[n / 2]) / 2.0;
+    }
+
+    // MODULE 4: Ghi output.csv
+    bool writeOutput(string path, const vector<DataNode>& data, double median) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        file << "i,value_imputed\n";
+        file << fixed << setprecision(6);
+
+        for (int i = 0; i < (int)data.size(); i++) {
+            double outVal = data[i].isMissing ? median : data[i].value;
+            file << i << "," << outVal << "\n";
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 5: Ghi summary.txt
+    bool writeSummary(string path, int countValid, int countMissing, double median) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        file << "count_valid=" << countValid << "\n";
+        file << "count_missing=" << countMissing << "\n";
+        file << fixed << setprecision(6);
+        file << "median=" << median << "\n";
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<DataNode> data;
+        vector<double> valid;
+
+        if (!loadData("data.csv", data, valid)) return 1;
+
+        double median = getMedian(valid);
+        int countValid = (int)valid.size();
+        int countMissing = (int)data.size() - countValid;
+
+        if (!writeOutput("output.csv", data, median)) return 1;
+        if (!writeSummary("summary.txt", countValid, countMissing, median)) return 1;
+
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (data.csv):}
+\begin{lstlisting}
+10
+NA
+30
+
+20
+\end{lstlisting}
+
+\textbf{Expected Output (output.csv):}
+\begin{lstlisting}
+i,value_imputed
+0,10.000000
+1,20.000000
+2,30.000000
+3,20.000000
+4,20.000000
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+\begin{lstlisting}
+count_valid=3
+count_missing=2
+median=20.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- tất cả đều missing)}
+
+\textbf{Input (data.csv):}
+\begin{lstlisting}
+NA
+
+NaN
+\end{lstlisting}
+
+\textbf{Expected Output (output.csv):}
+\begin{lstlisting}
+i,value_imputed
+0,0.000000
+1,0.000000
+2,0.000000
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+\begin{lstlisting}
+count_valid=0
+count_missing=3
+median=0.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- không có missing)}
+
+\textbf{Input (data.csv):}
+\begin{lstlisting}
+5
+15
+25
+35
+\end{lstlisting}
+
+\textbf{Expected Output (output.csv):}
+\begin{lstlisting}
+i,value_imputed
+0,5.000000
+1,15.000000
+2,25.000000
+3,35.000000
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+\begin{lstlisting}
+count_valid=4
+count_missing=0
+median=20.000000
+\end{lstlisting}

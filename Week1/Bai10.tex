@@ -64,112 +64,112 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
 
-using namespace std;
+    using namespace std;
 
-// MODULE 1: Read file
-bool readLines(string path, vector<string>& lines) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
+    // MODULE 1: Read file
+    bool readLines(string path, vector<string>& lines) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
 
-    string line;
-    while (getline(file, line)) {
-        lines.push_back(line);
+        string line;
+        while (getline(file, line)) {
+            lines.push_back(line);
+        }
+
+        file.close();
+        return true;
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 2: Parse log line
+    bool parseLog(const string& line, string& timestamp, string& level) {
+        if (line.size() < 22) return false;
 
-// MODULE 2: Parse log line
-bool parseLog(const string& line, string& timestamp, string& level) {
-    if (line.size() < 22) return false;
+        // timestamp = 19 ky tu dau
+        timestamp = line.substr(0, 19);
 
-    // timestamp = 19 ky tu dau
-    timestamp = line.substr(0, 19);
+        // tim [LEVEL]
+        size_t l = line.find('[');
+        size_t r = line.find(']');
 
-    // tim [LEVEL]
-    size_t l = line.find('[');
-    size_t r = line.find(']');
+        if (l == string::npos || r == string::npos || r <= l + 1) return false;
 
-    if (l == string::npos || r == string::npos || r <= l + 1) return false;
+        level = line.substr(l + 1, r - l - 1);
 
-    level = line.substr(l + 1, r - l - 1);
+        if (level != "INFO" && level != "WARN" && level != "ERROR")
+            return false;
 
-    if (level != "INFO" && level != "WARN" && level != "ERROR")
-        return false;
+        return true;
+    }
 
-    return true;
-}
+    // MODULE 3: Analyze
+    void analyzeLogs(const vector<string>& lines,
+                    int& info, int& warn, int& error,
+                    string& first_error, string& last_error) {
 
-// MODULE 3: Analyze
-void analyzeLogs(const vector<string>& lines,
-                 int& info, int& warn, int& error,
-                 string& first_error, string& last_error) {
+        info = warn = error = 0;
+        first_error = "NONE";
+        last_error = "NONE";
 
-    info = warn = error = 0;
-    first_error = "NONE";
-    last_error = "NONE";
+        for (const string& line : lines) {
+            string timestamp, level;
 
-    for (const string& line : lines) {
-        string timestamp, level;
+            if (!parseLog(line, timestamp, level)) continue;
 
-        if (!parseLog(line, timestamp, level)) continue;
-
-        if (level == "INFO") info++;
-        else if (level == "WARN") warn++;
-        else if (level == "ERROR") {
-            error++;
-            if (first_error == "NONE") first_error = timestamp;
-            last_error = timestamp;
+            if (level == "INFO") info++;
+            else if (level == "WARN") warn++;
+            else if (level == "ERROR") {
+                error++;
+                if (first_error == "NONE") first_error = timestamp;
+                last_error = timestamp;
+            }
         }
     }
-}
 
-// MODULE 4: Write output
-bool writeSummary(string path,
-                  int info, int warn, int error,
-                  const string& first_error,
-                  const string& last_error) {
+    // MODULE 4: Write output
+    bool writeSummary(string path,
+                    int info, int warn, int error,
+                    const string& first_error,
+                    const string& last_error) {
 
-    ofstream file(path);
-    if (!file.is_open()) return false;
+        ofstream file(path);
+        if (!file.is_open()) return false;
 
-    file << "INFO=" << info
-         << " / WARN=" << warn
-         << " / ERROR=" << error
-         << " / first_error=" << first_error
-         << " / last_error=" << last_error;
+        file << "INFO=" << info
+            << " / WARN=" << warn
+            << " / ERROR=" << error
+            << " / first_error=" << first_error
+            << " / last_error=" << last_error;
 
-    file.close();
-    return true;
-}
-
-// MAIN
-int main() {
-    vector<string> lines;
-
-    if (!readLines("log.txt", lines)) {
-        cerr << "Khong mo duoc file log.txt\n";
-        return 1;
+        file.close();
+        return true;
     }
 
-    int info, warn, error;
-    string first_error, last_error;
+    // MAIN
+    int main() {
+        vector<string> lines;
 
-    analyzeLogs(lines, info, warn, error, first_error, last_error);
+        if (!readLines("log.txt", lines)) {
+            cerr << "Khong mo duoc file log.txt\n";
+            return 1;
+        }
 
-    if (!writeSummary("summary.txt", info, warn, error, first_error, last_error)) {
-        cerr << "Khong ghi duoc file summary.txt\n";
-        return 1;
+        int info, warn, error;
+        string first_error, last_error;
+
+        analyzeLogs(lines, info, warn, error, first_error, last_error);
+
+        if (!writeSummary("summary.txt", info, warn, error, first_error, last_error)) {
+            cerr << "Khong ghi duoc file summary.txt\n";
+            return 1;
+        }
+
+        return 0;
     }
-
-    return 0;
-}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
@@ -178,15 +178,15 @@ int main() {
 
 \textbf{Input (log.txt):}
 \begin{lstlisting}
-2024-01-01 10:00:00 [INFO] Start system
-2024-01-01 10:01:00 [WARN] Low memory
-2024-01-01 10:02:00 [ERROR] Crash detected
-2024-01-01 10:03:00 [ERROR] Restart failed
+2026-04-01 10:00:00 [INFO] Start system
+2026-04-01 10:01:00 [WARN] Low memory
+2026-04-01 10:02:00 [ERROR] Crash detected
+2026-04-01 10:03:00 [ERROR] Restart failed
 \end{lstlisting}
 
 \textbf{Expected Output:}
 \begin{lstlisting}
-INFO=1 / WARN=1 / ERROR=2 / first_error=2024-01-01 10:02:00 / last_error=2024-01-01 10:03:00
+INFO=1 / WARN=1 / ERROR=2 / first_error=2026-04-01 10:02:00 / last_error=2026-04-01 10:03:00
 \end{lstlisting}
 
 \vspace{0.5cm}
@@ -195,8 +195,8 @@ INFO=1 / WARN=1 / ERROR=2 / first_error=2024-01-01 10:02:00 / last_error=2024-01
 
 \textbf{Input (log.txt):}
 \begin{lstlisting}
-2024-01-01 10:00:00 [INFO] Start
-2024-01-01 10:01:00 [WARN] Something
+2026-04-01 10:00:00 [INFO] Start
+2026-04-01 10:01:00 [WARN] Something
 \end{lstlisting}
 
 \textbf{Expected Output:}

@@ -1,0 +1,228 @@
+\section{Tính đa thức tại nhiều điểm [Cơ bản]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+    \item \textbf{Input:}
+        \begin{itemize}
+            \item File \texttt{poly.csv} chứa 1 dòng: \texttt{degree, a0, a1, ..., an} (phân tách bằng dấu phẩy).
+            \item File \texttt{x\_values.csv} chứa nhiều giá trị $x$, mỗi dòng 1 giá trị.
+        \end{itemize}
+
+    \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item \texttt{degree = 0} $\rightarrow$ Đa thức là hằng số $P(x) = a_0$.
+                \item File \texttt{x\_values.csv} rỗng $\rightarrow$ File output chỉ in ra đúng dòng header \texttt{x,P(x)}.
+                \item Gặp giá trị khuyết (\texttt{NA}, \texttt{NaN}, \texttt{nan}, hoặc dòng trống) $\rightarrow$ Bỏ qua không đưa vào tính toán.
+            \end{itemize}
+            
+            \item \textbf{Module 1 (Đọc hệ số đa thức):}
+            \begin{itemize}
+                \item Hàm \texttt{readPoly(path, int\&, vector<double>\&)}
+                \item Tách chuỗi bằng dấu phẩy (\texttt{,}) thông qua \texttt{stringstream}.
+                \item Bắt lỗi mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false}).
+            \end{itemize}
+
+            \item \textbf{Module 2 (Đọc giá trị x):}
+            \begin{itemize}
+                \item Hàm \texttt{readXValues(path, vector<double>\&)}
+                \item Đọc từng dòng, kiểm tra missing values.
+                \item Bắt lỗi mở file.
+            \end{itemize}
+            
+            \item \textbf{Module 3 (Tính giá trị đa thức):}
+            \begin{itemize}
+                \item Hàm \texttt{evalHorner(vector<double> a, double x)}
+                \item Áp dụng thuật toán Horner: \texttt{res = a[n]; for i=n-1..0: res = res*x + a[i]}.
+            \end{itemize}
+
+            \item \textbf{Module 4 (Ghi output):}
+            \begin{itemize}
+                \item Hàm \texttt{writeOutput(path, vector<double>, vector<double>)}
+                \item Ghi header \texttt{x,P(x)}. Định dạng số thực bằng \texttt{fixed} và \texttt{setprecision(6)}.
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        File \texttt{output.csv} với định dạng:
+        \begin{lstlisting}
+            x,P(x)
+            <f>,<f>\end{lstlisting} 
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <sstream>
+    #include <iomanip>
+
+    using namespace std;
+
+    // MODULE 1: Doc da thuc tu file poly.csv
+    bool readPoly(string path, int& degree, vector<double>& a) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        string line;
+        if (getline(file, line)) {
+            stringstream ss(line);
+            string token;
+            
+            // Doc degree
+            if (getline(ss, token, ',')) {
+                degree = stoi(token);
+            }
+            
+            // Doc cac he so a0, a1, ..., an
+            while (getline(ss, token, ',')) {
+                // Kiem tra missing value theo quy dinh (da ngat dong de tranh tran le PDF)
+                if (token == "NA" || token == "NaN" || 
+                    token == "nan" || token.empty()) {
+                    a.push_back(0.0); // He so khuyet xem nhu bang 0
+                } else {
+                    a.push_back(stod(token));
+                }
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 2: Doc cac diem x tu x_values.csv
+    bool readXValues(string path, vector<double>& x_vals) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            // Xu ly gia tri missing / o trong
+            if (line.empty() || line == "NA" || line == "NaN" || line == "nan") {
+                continue; 
+            }
+            x_vals.push_back(stod(line));
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 3: Tinh P(x) bang thuat toan Horner
+    double evalHorner(vector<double> a, double x) {
+        if (a.empty()) return 0.0;
+        
+        int n = a.size() - 1;
+        double res = a[n];
+        for (int i = n - 1; i >= 0; i--) {
+            res = res * x + a[i];
+        }
+        return res;
+    }
+
+    // MODULE 4: Ghi ket qua ra output.csv
+    bool writeOutput(string path, const vector<double>& x_vals, const vector<double>& a) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        // Ghi dong header
+        file << "x,P(x)\n";
+
+        // Ghi du lieu
+        file << fixed << setprecision(6);
+        for (double x : x_vals) {
+            double px = evalHorner(a, x);
+            file << x << "," << px << "\n";
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        int degree = 0;
+        vector<double> a;
+        vector<double> x_vals;
+
+        if (!readPoly("poly.csv", degree, a)) {
+            return 1;
+        }
+
+        if (!readXValues("x_values.csv", x_vals)) {
+            return 1;
+        }
+
+        if (!writeOutput("output.csv", x_vals, a)) {
+            return 1;
+        }
+
+        return 0;
+    }
+    \end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường - Bậc 2)}
+    
+    $P(x) = 1 + 2x + 3x^2$ (degree=2)
+    
+    \textbf{Input (poly.csv):}
+    \begin{lstlisting}
+    2,1.0,2.0,3.0\end{lstlisting}
+    \textbf{Input (x\_values.csv):}
+    \begin{lstlisting}
+    1.5
+    -2.0
+    NaN\end{lstlisting}
+    \textbf{Expected Output (output.csv):}
+    \begin{lstlisting}
+    x,P(x)
+    1.500000,10.750000
+    -2.000000,9.000000\end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- Hàm hằng, degree = 0)}
+    
+    $P(x) = 5.5$
+    
+    \textbf{Input (poly.csv):}
+    \begin{lstlisting}
+    0,5.5\end{lstlisting}
+    \textbf{Input (x\_values.csv):}
+    \begin{lstlisting}
+    10.0
+    0.0\end{lstlisting}
+    \textbf{Expected Output (output.csv):}
+    \begin{lstlisting}
+    x,P(x)
+    10.000000,5.500000
+    0.000000,5.500000\end{lstlisting}
+
+    \vspace{0.5cm}
+    
+    \textbf{Test Case 3 (Case biên -- x\_values rỗng)}
+
+    \textbf{Input (poly.csv):}
+    \begin{lstlisting}
+    3,1,0,0,5\end{lstlisting}
+    \textbf{Input (x\_values.csv):}
+    \begin{lstlisting}
+    \end{lstlisting}
+    (File trống)
+    
+    \textbf{Expected Output (output.csv):}
+    \begin{lstlisting}
+    x,P(x)\end{lstlisting}

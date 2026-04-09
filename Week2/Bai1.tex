@@ -1,0 +1,163 @@
+\section{Tìm min, max, mean mảng [Cơ bản]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+    \item \textbf{Input:}
+    File \texttt{array.txt} chứa:
+    \begin{itemize}
+        \item Số nguyên $n$
+        \item $n$ số thực
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
+                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
+            \end{itemize}
+            
+            \item \textbf{Module 1 (Đọc file):}
+            \begin{itemize}
+                \item Hàm \texttt{readArray(path, vector<double>\&)}
+                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
+            \end{itemize}
+            
+            \item \textbf{Module 2 (Tính mean):}
+            \begin{itemize}
+                \item Dùng \texttt{long double} để tránh sai số
+            \end{itemize}
+            
+            \item \textbf{Module 3 (Tìm min, max):}
+            \begin{itemize}
+                \item Duyệt mảng 1 lần
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        \begin{lstlisting}
+            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
+        (với \texttt{setprecision(4)})
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <iomanip>
+
+    using namespace std;
+
+    // MODULE 1: Doc du lieu tu file
+    bool readArray(string path, vector<double>& a) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file\n";
+            return false;
+        }
+
+        int n;
+        file >> n;
+
+        double x;
+        for (int i = 0; i < n; i++) {
+            file >> x;
+            a.push_back(x);
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 2: Tinh mean
+    double calcMean(const vector<double>& a) {
+        if (a.empty()) return 0.0;
+
+        long double sum = 0;
+        for (double x : a) sum += x;
+
+        return (double)(sum / a.size());
+    }
+
+    // MODULE 3: Ghi output
+    bool writeOutput(string path, const vector<double>& a) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file\n";
+            return false;
+        }
+
+        int n = a.size();
+
+        if (n == 0) {
+            file << "EMPTY";
+            file.close();
+            return true;
+        }
+
+        double mn = a[0], mx = a[0];
+
+        for (int i = 1; i < n; i++) {
+            if (a[i] < mn) mn = a[i];
+            if (a[i] > mx) mx = a[i];
+        }
+
+        double mean = calcMean(a);
+
+        file << fixed << setprecision(4);
+        file << "min=" << mn
+            << " / max=" << mx
+            << " / mean=" << mean;
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<double> a;
+
+        if (!readArray("array.txt", a)) {
+            return 1;
+        }
+
+        if (!writeOutput("output.txt", a)) {
+            return 1;
+        }
+
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- n=0)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    0\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    EMPTY\end{lstlisting}
+    \textbf{Test Case 3 (Case biên -- n=1)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    1 42.5\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}

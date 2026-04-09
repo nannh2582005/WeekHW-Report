@@ -55,112 +55,112 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <sstream>
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <sstream>
 
-using namespace std;
+    using namespace std;
 
-// MODULE: Trim
-string trim(const string& s) {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    size_t end = s.find_last_not_of(" \t\r\n");
+    // MODULE: Trim
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
 
-    if (start == string::npos) return "";
-    return s.substr(start, end - start + 1);
-}
-
-// MODULE: Check number
-bool isNumber(const string& s) {
-    if (s.empty()) return false;
-
-    try {
-        size_t idx;
-        stod(s, &idx);
-        return idx == s.size();
-    } catch (...) {
-        return false;
-    }
-}
-
-// MODULE 1: Read first line
-bool readFirstLine(string path, string& line) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
-
-    if (!getline(file, line)) {
-        file.close();
-        return true; // file rong
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
     }
 
-    file.close();
-    return true;
-}
+    // MODULE: Check number
+    bool isNumber(const string& s) {
+        if (s.empty()) return false;
 
-// MODULE 2: Split CSV
-void splitCSV(const string& line, vector<string>& cells) {
-    stringstream ss(line);
-    string temp;
-
-    while (getline(ss, temp, ',')) {
-        cells.push_back(trim(temp));
-    }
-}
-
-// MODULE 3: Detect header
-bool detectHeader(const vector<string>& cells) {
-    if (cells.empty()) return false;
-
-    for (const string& c : cells) {
-        if (isNumber(c)) return false;
-    }
-    return true;
-}
-
-// MODULE 4: Write output
-bool writeOutput(string path, bool has_header, const vector<string>& cols) {
-    ofstream file(path);
-    if (!file.is_open()) return false;
-
-    file << "has_header=" << (has_header ? 1 : 0);
-
-    if (has_header) {
-        file << "\ncolumns: ";
-        for (size_t i = 0; i < cols.size(); i++) {
-            file << cols[i];
-            if (i != cols.size() - 1) file << ", ";
+        try {
+            size_t idx;
+            stod(s, &idx);
+            return idx == s.size();
+        } catch (...) {
+            return false;
         }
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 1: Read first line
+    bool readFirstLine(string path, string& line) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
 
-// MAIN
-int main() {
-    string line;
-    vector<string> cells;
+        if (!getline(file, line)) {
+            file.close();
+            return true; // file rong
+        }
 
-    if (!readFirstLine("data.csv", line)) {
-        cerr << "Khong mo duoc file data.csv\n";
-        return 1;
+        file.close();
+        return true;
     }
 
-    if (!line.empty()) {
-        splitCSV(line, cells);
+    // MODULE 2: Split CSV
+    void splitCSV(const string& line, vector<string>& cells) {
+        stringstream ss(line);
+        string temp;
+
+        while (getline(ss, temp, ',')) {
+            cells.push_back(trim(temp));
+        }
     }
 
-    bool has_header = detectHeader(cells);
+    // MODULE 3: Detect header
+    bool detectHeader(const vector<string>& cells) {
+        if (cells.empty()) return false;
 
-    if (!writeOutput("output.txt", has_header, cells)) {
-        cerr << "Khong ghi duoc file output.txt\n";
-        return 1;
+        for (const string& c : cells) {
+            if (isNumber(c)) return false;
+        }
+        return true;
     }
 
-    return 0;
-}
+    // MODULE 4: Write output
+    bool writeOutput(string path, bool has_header, const vector<string>& cols) {
+        ofstream file(path);
+        if (!file.is_open()) return false;
+
+        file << "has_header=" << (has_header ? 1 : 0);
+
+        if (has_header) {
+            file << "\ncolumns: ";
+            for (size_t i = 0; i < cols.size(); i++) {
+                file << cols[i];
+                if (i != cols.size() - 1) file << ", ";
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        string line;
+        vector<string> cells;
+
+        if (!readFirstLine("data.csv", line)) {
+            cerr << "Khong mo duoc file data.csv\n";
+            return 1;
+        }
+
+        if (!line.empty()) {
+            splitCSV(line, cells);
+        }
+
+        bool has_header = detectHeader(cells);
+
+        if (!writeOutput("output.txt", has_header, cells)) {
+            cerr << "Khong ghi duoc file output.txt\n";
+            return 1;
+        }
+
+        return 0;
+    }
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
@@ -170,7 +170,7 @@ int main() {
 \textbf{Input (data.csv):}
 \begin{lstlisting}
 name, age, score
-Alice, 20, 8.5
+A, 20, 8.5
 \end{lstlisting}
 
 \textbf{Expected Output:}

@@ -1,0 +1,159 @@
+\section{Bài 7: Chuẩn hoá mảng Min-Max [Cơ bản]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{array.txt} chứa: số nguyên $n$ và mảng $n$ số thực (không có missing).
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Công thức chuẩn hoá:}
+        \[
+        x' = \frac{x - \min}{\max - \min}
+        \]
+
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item $n = 0$ $\rightarrow$ file output chỉ có header.
+            \item Nếu $\max = \min$ $\rightarrow$ mọi giá trị \texttt{scaled = 0}.
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc dữ liệu):} Hàm \texttt{readArray}. Bắt lỗi mở file (\texttt{return false}).
+        \item \textbf{Module 2 (Tìm min, max):} Duyệt mảng để xác định $\min$ và $\max$.
+        \item \textbf{Module 3 (Chuẩn hoá \& Ghi kết quả):} Hàm \texttt{writeOutput} tính giá trị chuẩn hoá và ghi ra file.
+    \end{itemize}
+
+    \item \textbf{Output:}
+    File \texttt{normalized.csv}:
+\begin{lstlisting}
+i,original,scaled
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}[language=C++, breaklines=true]
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <iomanip>
+
+    using namespace std;
+
+    // MODULE 1: Doc mang tu file
+    bool readArray(string path, vector<double>& a) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        int n;
+        file >> n;
+
+        double x;
+        for (int i = 0; i < n; i++) {
+            file >> x;
+            a.push_back(x);
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 2 + 3: Chuan hoa va ghi ket qua
+    bool writeOutput(string path, const vector<double>& a) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        file << "i,original,scaled\n";
+        file << fixed << setprecision(6);
+
+        int n = a.size();
+        if (n == 0) {
+            file.close();
+            return true;
+        }
+
+        double mn = a[0], mx = a[0];
+        for (double x : a) {
+            if (x < mn) mn = x;
+            if (x > mx) mx = x;
+        }
+
+        for (int i = 0; i < n; i++) {
+            double scaled;
+            if (mx == mn) scaled = 0.0;
+            else scaled = (a[i] - mn) / (mx - mn);
+
+            file << i << "," << a[i] << "," << scaled << "\n";
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<double> a;
+
+        if (!readArray("array.txt", a)) return 1;
+        if (!writeOutput("normalized.csv", a)) return 1;
+
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (array.txt):}
+\begin{lstlisting}
+5 10 20 30 40 50
+\end{lstlisting}
+
+\textbf{Expected Output (normalized.csv):}
+\begin{lstlisting}
+i,original,scaled
+0,10.000000,0.000000
+1,20.000000,0.250000
+2,30.000000,0.500000
+3,40.000000,0.750000
+4,50.000000,1.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- max = min)}
+
+\textbf{Input (array.txt):}
+\begin{lstlisting}
+3 5 5 5
+\end{lstlisting}
+
+\textbf{Expected Output (normalized.csv):}
+\begin{lstlisting}
+i,original,scaled
+0,5.000000,0.000000
+1,5.000000,0.000000
+2,5.000000,0.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- n = 0)}
+
+\textbf{Input (array.txt):}
+\begin{lstlisting}
+0
+\end{lstlisting}
+
+\textbf{Expected Output (normalized.csv):}
+\begin{lstlisting}
+i,original,scaled
+\end{lstlisting}

@@ -1,0 +1,181 @@
+\section{Đếm phần tử thỏa điều kiện [Cơ bản]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+    \item \textbf{Input:}
+        \begin{itemize}
+            \item File \texttt{array.txt} chứa mảng số nguyên: số lượng $n$ và $n$ phần tử.
+            \item File \texttt{config.txt} chứa ngưỡng: một số nguyên $k$.
+        \end{itemize}
+
+    \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item $n = 0 \rightarrow$ mảng rỗng, cả hai biến đếm đều bằng $0$.
+                \item Tất cả phần tử trong mảng đều bằng $k \rightarrow$ \texttt{count\_ge\_k} $= n$, \texttt{count\_lt\_k} $= 0$.
+            \end{itemize}
+            
+            \item \textbf{Module 1 (Đọc mảng):}
+            \begin{itemize}
+                \item Hàm \texttt{readArray(path, vector<int>\&)}
+                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
+            \end{itemize}
+
+            \item \textbf{Module 2 (Đọc cấu hình k):}
+            \begin{itemize}
+                \item Hàm \texttt{readConfig(path, int\&)}
+                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
+            \end{itemize}
+            
+            \item \textbf{Module 3 (Đếm theo điều kiện):}
+            \begin{itemize}
+                \item Hàm \texttt{countIf(vector<int>, k, geq)} với \texttt{geq} là biến \texttt{bool} để cờ hiệu đếm lớn hơn hoặc bằng (\texttt{true}) hay nhỏ hơn (\texttt{false}).
+            \end{itemize}
+
+            \item \textbf{Module 4 (Ghi output):}
+            \begin{itemize}
+                \item Hàm \texttt{writeOutput(path, count\_ge\_k, count\_lt\_k)}
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        \begin{lstlisting}
+            count_ge_k=<i> / count_lt_k=<i>\end{lstlisting} 
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+
+    using namespace std;
+
+    // MODULE 1: Doc mang tu file
+    bool readArray(string path, vector<int>& a) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        int n;
+        if (file >> n) {
+            int x;
+            for (int i = 0; i < n; i++) {
+                file >> x;
+                a.push_back(x);
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 2: Doc nguong k tu file config
+    bool readConfig(string path, int& k) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        file >> k;
+        
+        file.close();
+        return true;
+    }
+
+    // MODULE 3: Dem so luong phan tu thoa man
+    int countIf(const vector<int>& a, int k, bool geq) {
+        int count = 0;
+        for (int x : a) {
+            if (geq) {
+                if (x >= k) count++;
+            } else {
+                if (x < k) count++;
+            }
+        }
+        return count;
+    }
+
+    // MODULE 4: Ghi output
+    bool writeOutput(string path, int count_ge_k, int count_lt_k) {
+        ofstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong ghi duoc file " << path << "\n";
+            return false;
+        }
+
+        file << "count_ge_k=" << count_ge_k 
+            << " / count_lt_k=" << count_lt_k;
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<int> a;
+        int k;
+
+        if (!readArray("array.txt", a)) {
+            return 1;
+        }
+
+        if (!readConfig("config.txt", k)) {
+            return 1;
+        }
+
+        int count_ge = countIf(a, k, true);
+        int count_lt = countIf(a, k, false);
+
+        if (!writeOutput("output.txt", count_ge, count_lt)) {
+            return 1;
+        }
+
+        return 0;
+    }
+    \end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    6 10 -5 8 15 3 8\end{lstlisting}
+    \textbf{Input (config.txt):}
+    \begin{lstlisting}
+    8\end{lstlisting}
+    \textbf{Expected Output (output.txt):}
+    \begin{lstlisting}
+    count_ge_k=4 / count_lt_k=2\end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- n=0)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    0\end{lstlisting}
+    \textbf{Input (config.txt):}
+    \begin{lstlisting}
+    5\end{lstlisting}
+    \textbf{Expected Output (output.txt):}
+    \begin{lstlisting}
+    count_ge_k=0 / count_lt_k=0\end{lstlisting}
+
+    \vspace{0.5cm}
+    
+    \textbf{Test Case 3 (Case biên -- Tất cả bằng k)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    4 7 7 7 7\end{lstlisting}
+    \textbf{Input (config.txt):}
+    \begin{lstlisting}
+    7\end{lstlisting}
+    \textbf{Expected Output (output.txt):}
+    \begin{lstlisting}
+    count_ge_k=4 / count_lt_k=0\end{lstlisting}

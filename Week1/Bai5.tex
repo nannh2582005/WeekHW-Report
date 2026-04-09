@@ -98,185 +98,185 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <string>
-#include <iomanip>
-#include <cctype>
+    #include <iostream>
+    #include <fstream>
+    #include <sstream>
+    #include <vector>
+    #include <string>
+    #include <iomanip>
+    #include <cctype>
 
-using namespace std;
+    using namespace std;
 
-struct Record {
-    string id;
-    double math;
-    double lit;
-    double sci;
-    bool missingMath;
-    bool missingLit;
-    bool missingSci;
-    double total;
-    string rank;
-};
+    struct Record {
+        string id;
+        double math;
+        double lit;
+        double sci;
+        bool missingMath;
+        bool missingLit;
+        bool missingSci;
+        double total;
+        string rank;
+    };
 
-// MODULE: Trim
-string trim(const string& s) {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    size_t end = s.find_last_not_of(" \t\r\n");
+    // MODULE: Trim
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
 
-    if (start == string::npos) return "";
-    return s.substr(start, end - start + 1);
-}
-
-// MODULE: To lower
-string toLowerStr(string s) {
-    for (char& c : s) {
-        c = (char)tolower((unsigned char)c);
-    }
-    return s;
-}
-
-// MODULE: Check missing token
-bool isMissingToken(string t) {
-    t = toLowerStr(trim(t));
-    return t.empty() || t == "na" || t == "nan";
-}
-
-// MODULE: Parse double safely
-bool parseDouble(const string& s, double& value) {
-    string t = trim(s);
-    if (t.empty()) return false;
-
-    try {
-        size_t idx;
-        value = stod(t, &idx);
-        return idx == t.size();
-    } catch (...) {
-        return false;
-    }
-}
-
-// MODULE 1: Split CSV
-void splitCSV(const string& line, vector<string>& cells) {
-    cells.clear();
-    stringstream ss(line);
-    string cell;
-
-    while (getline(ss, cell, ',')) {
-        cells.push_back(cell);
-    }
-}
-
-// MODULE 2: Parse one score cell
-bool parseScore(const string& cell, double& value, bool& isMissing) {
-    if (isMissingToken(cell)) {
-        value = 0.0;
-        isMissing = true;
-        return true;
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
     }
 
-    isMissing = false;
-    return parseDouble(cell, value);
-}
+    // MODULE: To lower
+    string toLowerStr(string s) {
+        for (char& c : s) {
+            c = (char)tolower((unsigned char)c);
+        }
+        return s;
+    }
 
-// MODULE 3: Compute rank
-string computeRank(double total) {
-    if (total >= 24.0) return "Gioi";
-    if (total >= 18.0) return "Kha";
-    if (total >= 12.0) return "Trung binh";
-    return "Yeu";
-}
+    // MODULE: Check missing token
+    bool isMissingToken(string t) {
+        t = toLowerStr(trim(t));
+        return t.empty() || t == "na" || t == "nan";
+    }
 
-// MODULE 4: Parse one row -> Record
-bool parseRow(const vector<string>& cells, Record& rec) {
-    if (cells.size() != 4) return false;
+    // MODULE: Parse double safely
+    bool parseDouble(const string& s, double& value) {
+        string t = trim(s);
+        if (t.empty()) return false;
 
-    rec.id = trim(cells[0]);
-    if (rec.id.empty()) rec.id = "UNKNOWN";
-
-    if (!parseScore(cells[1], rec.math, rec.missingMath)) return false;
-    if (!parseScore(cells[2], rec.lit, rec.missingLit)) return false;
-    if (!parseScore(cells[3], rec.sci, rec.missingSci)) return false;
-
-    rec.total = rec.math + rec.lit + rec.sci;
-    rec.rank = computeRank(rec.total);
-
-    return true;
-}
-
-// MODULE 5: Read whole file
-bool readScores(string path, vector<Record>& records) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
-
-    string line;
-    while (getline(file, line)) {
-        if (trim(line).empty()) continue;
-
-        vector<string> cells;
-        splitCSV(line, cells);
-
-        Record rec;
-        if (parseRow(cells, rec)) {
-            records.push_back(rec);
+        try {
+            size_t idx;
+            value = stod(t, &idx);
+            return idx == t.size();
+        } catch (...) {
+            return false;
         }
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 1: Split CSV
+    void splitCSV(const string& line, vector<string>& cells) {
+        cells.clear();
+        stringstream ss(line);
+        string cell;
 
-// MODULE 6: Write result.csv
-bool writeResult(string path, const vector<Record>& records) {
-    ofstream file(path);
-    if (!file.is_open()) return false;
-
-    int countGioi = 0;
-    int countKha = 0;
-    int countTrungBinh = 0;
-    int countYeu = 0;
-
-    file << "id,total,rank\n";
-    file << fixed << setprecision(2);
-
-    for (size_t i = 0; i < records.size(); i++) {
-        file << records[i].id << ","
-             << records[i].total << ","
-             << records[i].rank << "\n";
-
-        if (records[i].rank == "Gioi") countGioi++;
-        else if (records[i].rank == "Kha") countKha++;
-        else if (records[i].rank == "Trung binh") countTrungBinh++;
-        else countYeu++;
+        while (getline(ss, cell, ',')) {
+            cells.push_back(cell);
+        }
     }
 
-    file << "SUMMARY,"
-         << countGioi << ","
-         << countKha << ","
-         << countTrungBinh << ","
-         << countYeu;
+    // MODULE 2: Parse one score cell
+    bool parseScore(const string& cell, double& value, bool& isMissing) {
+        if (isMissingToken(cell)) {
+            value = 0.0;
+            isMissing = true;
+            return true;
+        }
 
-    file.close();
-    return true;
-}
-
-// MAIN
-int main() {
-    vector<Record> records;
-
-    if (!readScores("scores.csv", records)) {
-        cerr << "Khong mo duoc file scores.csv\n";
-        return 1;
+        isMissing = false;
+        return parseDouble(cell, value);
     }
 
-    if (!writeResult("result.csv", records)) {
-        cerr << "Khong ghi duoc file result.csv\n";
-        return 1;
+    // MODULE 3: Compute rank
+    string computeRank(double total) {
+        if (total >= 24.0) return "Gioi";
+        if (total >= 18.0) return "Kha";
+        if (total >= 12.0) return "Trung binh";
+        return "Yeu";
     }
 
-    return 0;
-}
+    // MODULE 4: Parse one row -> Record
+    bool parseRow(const vector<string>& cells, Record& rec) {
+        if (cells.size() != 4) return false;
+
+        rec.id = trim(cells[0]);
+        if (rec.id.empty()) rec.id = "UNKNOWN";
+
+        if (!parseScore(cells[1], rec.math, rec.missingMath)) return false;
+        if (!parseScore(cells[2], rec.lit, rec.missingLit)) return false;
+        if (!parseScore(cells[3], rec.sci, rec.missingSci)) return false;
+
+        rec.total = rec.math + rec.lit + rec.sci;
+        rec.rank = computeRank(rec.total);
+
+        return true;
+    }
+
+    // MODULE 5: Read whole file
+    bool readScores(string path, vector<Record>& records) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
+
+        string line;
+        while (getline(file, line)) {
+            if (trim(line).empty()) continue;
+
+            vector<string> cells;
+            splitCSV(line, cells);
+
+            Record rec;
+            if (parseRow(cells, rec)) {
+                records.push_back(rec);
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 6: Write result.csv
+    bool writeResult(string path, const vector<Record>& records) {
+        ofstream file(path);
+        if (!file.is_open()) return false;
+
+        int countGioi = 0;
+        int countKha = 0;
+        int countTrungBinh = 0;
+        int countYeu = 0;
+
+        file << "id,total,rank\n";
+        file << fixed << setprecision(2);
+
+        for (size_t i = 0; i < records.size(); i++) {
+            file << records[i].id << ","
+                << records[i].total << ","
+                << records[i].rank << "\n";
+
+            if (records[i].rank == "Gioi") countGioi++;
+            else if (records[i].rank == "Kha") countKha++;
+            else if (records[i].rank == "Trung binh") countTrungBinh++;
+            else countYeu++;
+        }
+
+        file << "SUMMARY,"
+            << countGioi << ","
+            << countKha << ","
+            << countTrungBinh << ","
+            << countYeu;
+
+        file.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<Record> records;
+
+        if (!readScores("scores.csv", records)) {
+            cerr << "Khong mo duoc file scores.csv\n";
+            return 1;
+        }
+
+        if (!writeResult("result.csv", records)) {
+            cerr << "Khong ghi duoc file result.csv\n";
+            return 1;
+        }
+
+        return 0;
+    }
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
@@ -289,13 +289,6 @@ SV01,8,9,8
 SV02,6,6,7
 SV03,4,5,4
 \end{lstlisting}
-
-\textbf{Phân tích:}
-\begin{itemize}
-    \item \texttt{SV01}: tổng \texttt{= 25} $\rightarrow$ \texttt{Gioi}
-    \item \texttt{SV02}: tổng \texttt{= 19} $\rightarrow$ \texttt{Kha}
-    \item \texttt{SV03}: tổng \texttt{= 13} $\rightarrow$ \texttt{Trung binh}
-\end{itemize}
 
 \textbf{Expected Output (\texttt{result.csv}):}
 \begin{lstlisting}
@@ -316,13 +309,6 @@ SV01,8,NA,8
 SV02,,6,7
 ,NA,NaN,
 \end{lstlisting}
-
-\textbf{Phân tích:}
-\begin{itemize}
-    \item \texttt{SV01}: \texttt{8 + 0 + 8 = 16} $\rightarrow$ \texttt{Trung binh}
-    \item \texttt{SV02}: \texttt{0 + 6 + 7 = 13} $\rightarrow$ \texttt{Trung binh}
-    \item \texttt{UNKNOWN}: \texttt{0 + 0 + 0 = 0} $\rightarrow$ \texttt{Yeu}
-\end{itemize}
 
 \textbf{Expected Output (\texttt{result.csv}):}
 \begin{lstlisting}

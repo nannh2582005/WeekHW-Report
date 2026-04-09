@@ -1,0 +1,256 @@
+\section{Nội suy tuyến tính [Nâng cao]}
+
+\subsection{Phân tích \& Thiết kế (M0)}
+\begin{itemize}
+    \item \textbf{Input:}
+    \begin{itemize}
+        \item File \texttt{points.csv} chứa các điểm \texttt{x,y} đã sắp xếp tăng theo $x$ (không có $x$ trùng).
+        \item File \texttt{queries.csv} chứa các giá trị $x_q$ cần nội suy, mỗi dòng 1 giá trị.
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Nguyên tắc nội suy:}
+        \begin{itemize}
+            \item Với mỗi $x_q$:
+            \begin{itemize}
+                \item Nếu $x_q < x_{\min}$ hoặc $x_q > x_{\max}$ $\rightarrow$ ghi \texttt{OUT\_OF\_RANGE}.
+                \item Nếu $x_q$ trùng đúng một giá trị $x_i$ trong dữ liệu $\rightarrow$ trả về đúng $y_i$.
+                \item Nếu $x_i < x_q < x_{i+1}$ $\rightarrow$ nội suy tuyến tính theo công thức:
+                \[
+                y_q = y_i + (x_q - x_i)\cdot \frac{y_{i+1} - y_i}{x_{i+1} - x_i}
+                \]
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Case biên:}
+        \begin{itemize}
+            \item File \texttt{points.csv} rỗng $\rightarrow$ chương trình báo lỗi và \texttt{return 1}.
+            \item File \texttt{queries.csv} rỗng $\rightarrow$ file output rỗng.
+            \item Truy vấn nằm ngoài đoạn $[x_{\min}, x_{\max}]$ $\rightarrow$ ghi \texttt{OUT\_OF\_RANGE}.
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc dữ liệu điểm):} Hàm \texttt{loadPoints}. Bắt lỗi mở file (\texttt{return false}).
+        \item \textbf{Module 2 (Nội suy 1 truy vấn):} Hàm \texttt{interpolateOne}. Tìm khoảng phù hợp và tính giá trị nội suy.
+        \item \textbf{Module 3 (Xử lý toàn bộ truy vấn):} Hàm \texttt{processQueries}. Đọc \texttt{queries.csv}, xử lý từng dòng và ghi ra \texttt{interpolated.csv}.
+    \end{itemize}
+
+    \item \textbf{Output:}
+    File \texttt{interpolated.csv}:
+\begin{lstlisting}
+x_q,y_interp
+x_q,OUT_OF_RANGE
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}[language=C++, breaklines=true]
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <sstream>
+    #include <iomanip>
+
+    using namespace std;
+
+    struct Point {
+        double x;
+        double y;
+    };
+
+    // MODULE 1: Doc cac diem tu points.csv
+    bool loadPoints(string path, vector<Point>& pts) {
+        ifstream file(path);
+        if (!file.is_open()) {
+            cerr << "Khong mo duoc file " << path << "\n";
+            return false;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            if (line.empty()) continue;
+
+            stringstream ss(line);
+            string sx, sy;
+
+            if (getline(ss, sx, ',') && getline(ss, sy)) {
+                Point p;
+                p.x = stod(sx);
+                p.y = stod(sy);
+                pts.push_back(p);
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    // MODULE 2: Noi suy 1 gia tri xq
+    string interpolateOne(const vector<Point>& pts, double xq) {
+        if (pts.empty()) return "OUT_OF_RANGE";
+
+        if (xq < pts.front().x || xq > pts.back().x) {
+            return "OUT_OF_RANGE";
+        }
+
+        for (int i = 0; i < (int)pts.size(); i++) {
+            if (xq == pts[i].x) {
+                stringstream ss;
+                ss << fixed << setprecision(6) << pts[i].y;
+                return ss.str();
+            }
+        }
+
+        for (int i = 0; i < (int)pts.size() - 1; i++) {
+            if (pts[i].x < xq && xq < pts[i + 1].x) {
+                double xi = pts[i].x;
+                double yi = pts[i].y;
+                double xj = pts[i + 1].x;
+                double yj = pts[i + 1].y;
+
+                double yq = yi + (xq - xi) * (yj - yi) / (xj - xi);
+
+                stringstream ss;
+                ss << fixed << setprecision(6) << yq;
+                return ss.str();
+            }
+        }
+
+        return "OUT_OF_RANGE";
+    }
+
+    // MODULE 3: Xu ly danh sach truy van va ghi file
+    bool processQueries(string queryPath, string outPath, const vector<Point>& pts) {
+        ifstream fin(queryPath);
+        if (!fin.is_open()) {
+            cerr << "Khong mo duoc file " << queryPath << "\n";
+            return false;
+        }
+
+        ofstream fout(outPath);
+        if (!fout.is_open()) {
+            cerr << "Khong ghi duoc file " << outPath << "\n";
+            return false;
+        }
+
+        fout << fixed << setprecision(6);
+
+        string line;
+        while (getline(fin, line)) {
+            if (line.empty()) continue;
+
+            double xq = stod(line);
+            string ans = interpolateOne(pts, xq);
+
+            fout << xq << "," << ans << "\n";
+        }
+
+        fin.close();
+        fout.close();
+        return true;
+    }
+
+    // MAIN
+    int main() {
+        vector<Point> pts;
+
+        if (!loadPoints("points.csv", pts)) return 1;
+        if (pts.empty()) {
+            cerr << "File points.csv rong\n";
+            return 1;
+        }
+
+        if (!processQueries("queries.csv", "interpolated.csv", pts)) return 1;
+
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+\textbf{Test Case 1 (Thông thường)}
+
+\textbf{Input (points.csv):}
+\begin{lstlisting}
+1,2
+3,6
+5,10
+\end{lstlisting}
+
+\textbf{Input (queries.csv):}
+\begin{lstlisting}
+2
+4
+\end{lstlisting}
+
+\textbf{Expected Output (interpolated.csv):}
+\begin{lstlisting}
+2.000000,4.000000
+4.000000,8.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- truy vấn trùng điểm có sẵn)}
+
+\textbf{Input (points.csv):}
+\begin{lstlisting}
+0,1
+2,5
+4,9
+\end{lstlisting}
+
+\textbf{Input (queries.csv):}
+\begin{lstlisting}
+2
+4
+\end{lstlisting}
+
+\textbf{Expected Output (interpolated.csv):}
+\begin{lstlisting}
+2.000000,5.000000
+4.000000,9.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- ngoài khoảng)}
+
+\textbf{Input (points.csv):}
+\begin{lstlisting}
+1,2
+3,6
+5,10
+\end{lstlisting}
+
+\textbf{Input (queries.csv):}
+\begin{lstlisting}
+0
+6
+\end{lstlisting}
+
+\textbf{Expected Output (interpolated.csv):}
+\begin{lstlisting}
+0.000000,OUT_OF_RANGE
+6.000000,OUT_OF_RANGE
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 4 (Case biên -- queries.csv rỗng)}
+
+\textbf{Input (points.csv):}
+\begin{lstlisting}
+1,2
+3,6
+5,10
+\end{lstlisting}
+
+\textbf{Input (queries.csv):}
+\begin{lstlisting}
+\end{lstlisting}
+
+\textbf{Expected Output (interpolated.csv):}
+\begin{lstlisting}
+\end{lstlisting}

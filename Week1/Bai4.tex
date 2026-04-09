@@ -66,146 +66,146 @@
 
 \subsection{Mã nguồn C++11 (Tách module)}
 \begin{lstlisting}
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <iomanip>
+    #include <iostream>
+    #include <fstream>
+    #include <vector>
+    #include <string>
+    #include <iomanip>
 
-using namespace std;
+    using namespace std;
 
-struct Stats {
-    int count;
-    double minVal;
-    double maxVal;
-    double mean;
-};
+    struct Stats {
+        int count;
+        double minVal;
+        double maxVal;
+        double mean;
+    };
 
-// MODULE: Trim
-string trim(const string& s) {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    size_t end = s.find_last_not_of(" \t\r\n");
+    // MODULE: Trim
+    string trim(const string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
 
-    if (start == string::npos) return "";
-    return s.substr(start, end - start + 1);
-}
-
-// MODULE: To lower
-string toLowerStr(string s) {
-    for (char& c : s) {
-        if ('A' <= c && c <= 'Z') c = c - 'A' + 'a';
+        if (start == string::npos) return "";
+        return s.substr(start, end - start + 1);
     }
-    return s;
-}
 
-// MODULE: Check missing token
-bool isMissingToken(string t) {
-    t = toLowerStr(trim(t));
-    return t.empty() || t == "na" || t == "nan" || t == "n/a";
-}
-
-// MODULE: Parse double safely
-bool parseDouble(const string& s, double& value) {
-    string t = trim(s);
-    if (t.empty()) return false;
-
-    try {
-        size_t idx;
-        value = stod(t, &idx);
-        return idx == t.size();
-    } catch (...) {
-        return false;
+    // MODULE: To lower
+    string toLowerStr(string s) {
+        for (char& c : s) {
+            if ('A' <= c && c <= 'Z') c = c - 'A' + 'a';
+        }
+        return s;
     }
-}
 
-// MODULE 1: Read CSV 1 column
-bool readCSV1Col(string path, vector<double>& data, int& missing) {
-    ifstream file(path);
-    if (!file.is_open()) return false;
+    // MODULE: Check missing token
+    bool isMissingToken(string t) {
+        t = toLowerStr(trim(t));
+        return t.empty() || t == "na" || t == "nan" || t == "n/a";
+    }
 
-    missing = 0;
-    string line;
+    // MODULE: Parse double safely
+    bool parseDouble(const string& s, double& value) {
+        string t = trim(s);
+        if (t.empty()) return false;
 
-    while (getline(file, line)) {
-        if (isMissingToken(line)) {
-            missing++;
-        } else {
-            double value;
-            if (parseDouble(line, value)) {
-                data.push_back(value);
-            }
+        try {
+            size_t idx;
+            value = stod(t, &idx);
+            return idx == t.size();
+        } catch (...) {
+            return false;
         }
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 1: Read CSV 1 column
+    bool readCSV1Col(string path, vector<double>& data, int& missing) {
+        ifstream file(path);
+        if (!file.is_open()) return false;
 
-// MODULE 2: Compute stats
-Stats computeStats(const vector<double>& data) {
-    Stats st;
-    st.count = (int)data.size();
-    st.minVal = 0.0;
-    st.maxVal = 0.0;
-    st.mean = 0.0;
+        missing = 0;
+        string line;
 
-    if (data.empty()) return st;
+        while (getline(file, line)) {
+            if (isMissingToken(line)) {
+                missing++;
+            } else {
+                double value;
+                if (parseDouble(line, value)) {
+                    data.push_back(value);
+                }
+            }
+        }
 
-    st.minVal = data[0];
-    st.maxVal = data[0];
-
-    long double sum = 0.0;
-    for (double x : data) {
-        if (x < st.minVal) st.minVal = x;
-        if (x > st.maxVal) st.maxVal = x;
-        sum += x;
+        file.close();
+        return true;
     }
 
-    st.mean = (double)(sum / data.size());
-    return st;
-}
+    // MODULE 2: Compute stats
+    Stats computeStats(const vector<double>& data) {
+        Stats st;
+        st.count = (int)data.size();
+        st.minVal = 0.0;
+        st.maxVal = 0.0;
+        st.mean = 0.0;
 
-// MODULE 3: Write output
-bool writeOutput(string path, const Stats& st, int missing) {
-    ofstream file(path);
-    if (!file.is_open()) return false;
+        if (data.empty()) return st;
 
-    file << "count=" << st.count
-         << " / missing=" << missing
-         << " / ";
+        st.minVal = data[0];
+        st.maxVal = data[0];
 
-    if (st.count == 0) {
-        file << "min=N/A / max=N/A / mean=N/A";
-    } else {
-        file << fixed << setprecision(2);
-        file << "min=" << st.minVal
-             << " / max=" << st.maxVal
-             << " / mean=" << st.mean;
+        long double sum = 0.0;
+        for (double x : data) {
+            if (x < st.minVal) st.minVal = x;
+            if (x > st.maxVal) st.maxVal = x;
+            sum += x;
+        }
+
+        st.mean = (double)(sum / data.size());
+        return st;
     }
 
-    file.close();
-    return true;
-}
+    // MODULE 3: Write output
+    bool writeOutput(string path, const Stats& st, int missing) {
+        ofstream file(path);
+        if (!file.is_open()) return false;
 
-// MAIN
-int main() {
-    vector<double> data;
-    int missing = 0;
+        file << "count=" << st.count
+            << " / missing=" << missing
+            << " / ";
 
-    if (!readCSV1Col("data.csv", data, missing)) {
-        cerr << "Khong mo duoc file data.csv\n";
-        return 1;
+        if (st.count == 0) {
+            file << "min=N/A / max=N/A / mean=N/A";
+        } else {
+            file << fixed << setprecision(2);
+            file << "min=" << st.minVal
+                << " / max=" << st.maxVal
+                << " / mean=" << st.mean;
+        }
+
+        file.close();
+        return true;
     }
 
-    Stats st = computeStats(data);
+    // MAIN
+    int main() {
+        vector<double> data;
+        int missing = 0;
 
-    if (!writeOutput("output.txt", st, missing)) {
-        cerr << "Khong ghi duoc file output.txt\n";
-        return 1;
+        if (!readCSV1Col("data.csv", data, missing)) {
+            cerr << "Khong mo duoc file data.csv\n";
+            return 1;
+        }
+
+        Stats st = computeStats(data);
+
+        if (!writeOutput("output.txt", st, missing)) {
+            cerr << "Khong ghi duoc file output.txt\n";
+            return 1;
+        }
+
+        return 0;
     }
-
-    return 0;
-}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
@@ -221,16 +221,6 @@ NA
 NaN
 15.5
 \end{lstlisting}
-
-\textbf{Phân tích:}
-\begin{itemize}
-    \item Giá trị hợp lệ: \texttt{10, 20.5, 30, 15.5}
-    \item \texttt{count = 4}
-    \item \texttt{missing = 2}
-    \item \texttt{min = 10.00}
-    \item \texttt{max = 30.00}
-    \item \texttt{mean = (10 + 20.5 + 30 + 15.5)/4 = 19.00}
-\end{itemize}
 
 \textbf{Expected Output:}
 \begin{lstlisting}
