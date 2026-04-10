@@ -1,0 +1,114 @@
+\section{Longest Non-Decreasing Subsequence [Trung bình]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+    \item \textbf{Input:}
+    File \texttt{array.txt} chứa:
+    \begin{itemize}
+        \item Số nguyên $n$
+        \item $n$ số thực
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
+                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
+            \end{itemize}
+            
+            \item \textbf{Module 1 (Đọc file):}
+            \begin{itemize}
+                \item Hàm \texttt{readArray(path, vector<double>\&)}
+                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
+            \end{itemize}
+            
+            \item \textbf{Module 2 (Tính mean):}
+            \begin{itemize}
+                \item Dùng \texttt{long double} để tránh sai số
+            \end{itemize}
+            
+            \item \textbf{Module 3 (Tìm min, max):}
+            \begin{itemize}
+                \item Duyệt mảng 1 lần
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        \begin{lstlisting}
+            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
+        (với \texttt{setprecision(4)})
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <vector>
+    #include <fstream>
+    #include <algorithm>
+
+    using namespace std;
+
+    int lndsLength(const vector<int>& a) {
+        if (a.empty()) return 0;
+        vector<int> dp(a.size(), 1);
+        int max_len = 1;
+        
+        for (int i = 1; i < (int)a.size(); ++i) {
+            for (int j = 0; j < i; ++j) {
+                if (a[j] <= a[i]) {
+                    dp[i] = max(dp[i], dp[j] + 1);
+                }
+            }
+            max_len = max(max_len, dp[i]);
+        }
+        return max_len;
+    }
+
+    int main() {
+        ifstream fin("array.txt");
+        ofstream fout("output.txt");
+        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+
+        int n; 
+        if (!(fin >> n) || n == 0) { fout << "lnds_len=0\n"; return 0; }
+
+        vector<int> a(n);
+        for (int i = 0; i < n; ++i) fin >> a[i];
+
+        fout << "lnds_len=" << lndsLength(a) << "\n";
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- n=0)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    0\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    EMPTY\end{lstlisting}
+    \textbf{Test Case 3 (Case biên -- n=1)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    1 42.5\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}

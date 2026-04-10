@@ -1,0 +1,111 @@
+\section{Đếm phần tử không âm trong đoạn [Cơ bản]}
+\subsection{Phân tích \& Thiết kế (M0)}
+    \begin{itemize}
+    \item \textbf{Input:}
+    File \texttt{array.txt} chứa:
+    \begin{itemize}
+        \item Số nguyên $n$
+        \item $n$ số thực
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+        \begin{itemize}
+            \item \textbf{Case biên:}
+            \begin{itemize}
+                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
+                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
+            \end{itemize}
+            
+            \item \textbf{Module 1 (Đọc file):}
+            \begin{itemize}
+                \item Hàm \texttt{readArray(path, vector<double>\&)}
+                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
+            \end{itemize}
+            
+            \item \textbf{Module 2 (Tính mean):}
+            \begin{itemize}
+                \item Dùng \texttt{long double} để tránh sai số
+            \end{itemize}
+            
+            \item \textbf{Module 3 (Tìm min, max):}
+            \begin{itemize}
+                \item Duyệt mảng 1 lần
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Output:}
+        \begin{lstlisting}
+            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
+        (với \texttt{setprecision(4)})
+    \end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+    \begin{lstlisting}
+    #include <iostream>
+    #include <vector>
+    #include <fstream>
+
+    using namespace std;
+
+    bool countNonNegative(const vector<int>& pre_b, int l, int r, int& ans) {
+        if (l < 0 || r >= pre_b.size() || l > r) return false;
+        ans = pre_b[r] - (l > 0 ? pre_b[l - 1] : 0);
+        return true;
+    }
+
+    int main() {
+        ifstream fin_arr("array.txt"), fin_q("queries.txt");
+        ofstream fout("output.txt");
+        if (!fin_arr || !fin_q || !fout) { cerr << "Loi mo file!\n"; return 1; }
+
+        int n; fin_arr >> n;
+        vector<int> pre_b(n);
+        for (int i = 0; i < n; ++i) {
+            long long val; fin_arr >> val;
+            int b = (val >= 0 ? 1 : 0);
+            pre_b[i] = b + (i > 0 ? pre_b[i - 1] : 0);
+        }
+
+        int q; fin_q >> q;
+        while (q--) {
+            int l, r; fin_q >> l >> r;
+            int ans;
+            if (countNonNegative(pre_b, l, r, ans)) fout << ans << "\n";
+            else fout << "INVALID\n";
+        }
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{Kế hoạch kiểm thử (Test Cases)}
+
+    \textbf{Test Case 1 (Thông thường)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+
+    \vspace{0.5cm}
+
+    \textbf{Test Case 2 (Case biên -- n=0)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    0\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    EMPTY\end{lstlisting}
+    \textbf{Test Case 3 (Case biên -- n=1)}
+
+    \textbf{Input (array.txt):}
+    \begin{lstlisting}
+    1 42.5\end{lstlisting}
+
+    \textbf{Expected Output:}
+    \begin{lstlisting}
+    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
