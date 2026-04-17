@@ -1,124 +1,234 @@
-\section{Xây dựng prefix sum [Cơ bản]}
+\section{Chuẩn hoá phân số [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{fractions.csv} chứa nhiều dòng:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng có dạng: \texttt{num,den}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item \texttt{den = 0} $\rightarrow$ phân số không hợp lệ
+            \item \texttt{num = 0} $\rightarrow$ chuẩn hoá thành \texttt{0,1}
+            \item \texttt{den < 0} $\rightarrow$ đổi dấu cả tử và mẫu
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+        \begin{itemize}
+            \item Hàm \texttt{readFractions(path, vector<Fraction>\&)}
+            \item Đọc từng dòng dạng CSV
+            \item Kiểm tra mở file (\texttt{fail} $\rightarrow$ \texttt{return false})
+        \end{itemize}
+
+        \item \textbf{Module 2 (Ước chung lớn nhất):}
+        \begin{itemize}
+            \item Thuật toán Euclid:
+            \begin{lstlisting}
+while (b != 0) {
+    t = a % b;
+    a = b;
+    b = t;
+}
+            \end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Chuẩn hoá phân số):}
+        \begin{itemize}
+            \item Nếu mẫu bằng 0 $\rightarrow$ trả \texttt{false}
+            \item Đưa mẫu về dương
+            \item Rút gọn theo gcd
+        \end{itemize}
+
+        \item \textbf{Module 4 (Ghi file):}
+        \begin{itemize}
+            \item Ghi các phân số hợp lệ vào \texttt{normalized.csv}
+            \item Định dạng: \texttt{num,den}
+        \end{itemize}
     \end{itemize}
 
-\subsection{Mã nguồn C++11 (Tách module)}
+    \item \textbf{Output:}
     \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
+Ghi file normalized.csv
+invalid=<n>
+    \end{lstlisting}
+\end{itemize}
 
-    using namespace std;
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
 
-    bool readArray(const string& path, vector<long long>& a) {
-        ifstream fin(path);
-        if (!fin) return false;
-        int n;
-        if (fin >> n) {
-            a.resize(n);
-            for (int i = 0; i < n; ++i) fin >> a[i];
+using namespace std;
+
+struct Fraction {
+    long long num, den;
+};
+
+long long gcd(long long a, long long b) {
+    a = llabs(a);
+    b = llabs(b);
+
+    while (b != 0) {
+        long long t = a % b;
+        a = b;
+        b = t;
+    }
+
+    return a;
+}
+
+bool readFractions(const string& path,
+                   vector<Fraction>& arr) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    string line;
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        string s1, s2;
+
+        if (getline(ss, s1, ',') &&
+            getline(ss, s2)) {
+            Fraction f;
+            f.num = atoll(s1.c_str());
+            f.den = atoll(s2.c_str());
+            arr.push_back(f);
         }
+    }
+
+    return true;
+}
+
+bool normalize(Fraction& f) {
+    if (f.den == 0) return false;
+
+    if (f.num == 0) {
+        f.num = 0;
+        f.den = 1;
         return true;
     }
 
-    vector<long long> buildPrefix(const vector<long long>& a) {
-        if (a.empty()) return {};
-        vector<long long> pre(a.size());
-        pre[0] = a[0];
-        for (size_t i = 1; i < a.size(); ++i) pre[i] = pre[i - 1] + a[i];
-        return pre;
+    if (f.den < 0) {
+        f.num = -f.num;
+        f.den = -f.den;
     }
 
-    bool writePrefix(const string& path, const vector<long long>& pre) {
-        ofstream fout(path);
-        if (!fout) return false;
-        for (size_t i = 0; i < pre.size(); ++i) {
-            fout << i << ": " << pre[i] << "\n";
-        }
-        return true;
+    long long g = gcd(f.num, f.den);
+    f.num /= g;
+    f.den /= g;
+
+    return true;
+}
+
+bool writeFractions(const string& path,
+                    const vector<Fraction>& arr) {
+    ofstream fout(path);
+    if (!fout) return false;
+
+    for (size_t i = 0; i < arr.size(); ++i)
+        fout << arr[i].num
+             << "," << arr[i].den << "\n";
+
+    return true;
+}
+
+int main() {
+    vector<Fraction> input, output;
+
+    if (!readFractions("fractions.csv", input)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
     }
 
-    int main() {
-        vector<long long> a;
-        if (!readArray("input.txt", a)) {
-            cerr << "Loi mo file input!\n";
-            return 1;
-        }
-        vector<long long> pre = buildPrefix(a);
-        if (!writePrefix("prefix.txt", pre)) {
-            cerr << "Loi mo file output!\n";
-            return 1;
-        }
-        return 0;
+    int invalid = 0;
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        Fraction f = input[i];
+
+        if (normalize(f))
+            output.push_back(f);
+        else
+            invalid++;
     }
+
+    if (!writeFractions("normalized.csv", output)) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    cout << "invalid=" << invalid;
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (fractions.csv):}
+\begin{lstlisting}
+2,4
+3,-9
+0,7
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (normalized.csv):}
+\begin{lstlisting}
+1,2
+-1,3
+0,1
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Console Output:}
+\begin{lstlisting}
+invalid=0
+\end{lstlisting}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\vspace{0.5cm}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Test Case 2 (Có phân số lỗi)}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Input (fractions.csv):}
+\begin{lstlisting}
+1,0
+5,10
+7,0
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Expected Output (normalized.csv):}
+\begin{lstlisting}
+1,2
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Console Output:}
+\begin{lstlisting}
+invalid=2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- num=0)}
+
+\textbf{Input (fractions.csv):}
+\begin{lstlisting}
+0,-5
+\end{lstlisting}
+
+\textbf{Expected Output (normalized.csv):}
+\begin{lstlisting}
+0,1
+\end{lstlisting}
+
+\textbf{Console Output:}
+\begin{lstlisting}
+invalid=0
+\end{lstlisting}

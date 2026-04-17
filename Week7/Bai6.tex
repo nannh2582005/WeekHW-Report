@@ -1,114 +1,240 @@
-\section{Phần tử xuất hiện nhiều nhất trong đoạn [Trung bình]}
+\section{Nhân và chia 2 phân số [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{pairs.csv} chứa nhiều dòng:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng gồm 4 số: \texttt{n1,d1,n2,d2}
+        \item Tương ứng hai phân số $\frac{n1}{d1}$ và $\frac{n2}{d2}$
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item Nếu mẫu số bằng 0 $\rightarrow$ phân số không hợp lệ
+            \item Nếu \texttt{d2 = 0} hoặc \texttt{n2 = 0} $\rightarrow$ chia cho 0
+            \item Nếu tử số bằng 0 $\rightarrow$ chuẩn hoá thành \texttt{0/1}
+            \item Nếu mẫu âm $\rightarrow$ đổi dấu cả tử và mẫu
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+        \begin{itemize}
+            \item Hàm \texttt{readPairs(path, vector<PairFrac>\&)}
+            \item Đọc từng dòng CSV
+            \item Kiểm tra mở file (\texttt{fail} $\rightarrow$ \texttt{return false})
+        \end{itemize}
+
+        \item \textbf{Module 2 (Ước chung lớn nhất):}
+        \begin{itemize}
+            \item Thuật toán Euclid để rút gọn
+        \end{itemize}
+
+        \item \textbf{Module 3 (Chuẩn hoá):}
+        \begin{itemize}
+            \item Đưa mẫu về dương
+            \item Rút gọn gcd
+        \end{itemize}
+
+        \item \textbf{Module 4 (Nhân và chia):}
+        \begin{itemize}
+            \item
+            \begin{lstlisting}
+(a/b) * (c/d) = (a*c)/(b*d)
+(a/b) / (c/d) = (a*d)/(b*c)
+            \end{lstlisting}
+            \item Nếu chia cho 0 $\rightarrow$ ghi \texttt{DIV\_ZERO}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Ghi file):}
+        \begin{itemize}
+            \item Ghi \texttt{results.csv}
+            \item Định dạng:
+            \texttt{prod\_num,prod\_den,quot\_num,quot\_den}
+        \end{itemize}
     \end{itemize}
 
-\subsection{Mã nguồn C++11 (Tách module)}
+    \item \textbf{Output:}
     \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
+Ghi file results.csv
+    \end{lstlisting}
+\end{itemize}
 
-    using namespace std;
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+using namespace std;
 
-        int n; fin_arr >> n;
-        vector<vector<int>> pre(101, vector<int>(n + 1, 0));
-        
-        for (int i = 1; i <= n; ++i) {
-            int val; fin_arr >> val;
-            for (int v = 0; v <= 100; ++v) pre[v][i] = pre[v][i - 1];
-            if (val >= 0 && val <= 100) pre[val][i]++;
-        }
+struct Fraction {
+    long long num, den;
+};
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) { fout << "INVALID\n"; continue; }
-            
-            int max_freq = -1, best_val = -1;
-            for (int v = 0; v <= 100; ++v) {
-                int freq = pre[v][r + 1] - pre[v][l];
-                if (freq > max_freq) {
-                    max_freq = freq;
-                    best_val = v;
-                }
-            }
-            fout << best_val << "\n";
-        }
-        return 0;
+struct PairFrac {
+    Fraction a, b;
+};
+
+long long gcd(long long a, long long b) {
+    a = llabs(a);
+    b = llabs(b);
+
+    while (b != 0) {
+        long long t = a % b;
+        a = b;
+        b = t;
     }
+
+    return a;
+}
+
+bool normalize(Fraction& f) {
+    if (f.den == 0) return false;
+
+    if (f.num == 0) {
+        f.num = 0;
+        f.den = 1;
+        return true;
+    }
+
+    if (f.den < 0) {
+        f.num = -f.num;
+        f.den = -f.den;
+    }
+
+    long long g = gcd(f.num, f.den);
+    f.num /= g;
+    f.den /= g;
+
+    return true;
+}
+
+bool readPairs(const string& path,
+               vector<PairFrac>& arr) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    string line;
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        string s[4];
+
+        for (int i = 0; i < 4; ++i)
+            getline(ss, s[i], i == 3 ? '\n' : ',');
+
+        PairFrac p;
+        p.a.num = atoll(s[0].c_str());
+        p.a.den = atoll(s[1].c_str());
+        p.b.num = atoll(s[2].c_str());
+        p.b.den = atoll(s[3].c_str());
+
+        arr.push_back(p);
+    }
+
+    return true;
+}
+
+Fraction mulFrac(Fraction x, Fraction y) {
+    Fraction r;
+    r.num = x.num * y.num;
+    r.den = x.den * y.den;
+    normalize(r);
+    return r;
+}
+
+bool divFrac(Fraction x, Fraction y, Fraction& r) {
+    if (y.num == 0 || y.den == 0) return false;
+
+    r.num = x.num * y.den;
+    r.den = x.den * y.num;
+    return normalize(r);
+}
+
+bool writeResults(const string& path,
+                  const vector<PairFrac>& arr) {
+    ofstream fout(path);
+    if (!fout) return false;
+
+    for (size_t i = 0; i < arr.size(); ++i) {
+        Fraction p = mulFrac(arr[i].a, arr[i].b);
+        fout << p.num << "," << p.den << ",";
+
+        Fraction q;
+        if (divFrac(arr[i].a, arr[i].b, q))
+            fout << q.num << "," << q.den;
+        else
+            fout << "DIV_ZERO";
+
+        fout << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+    vector<PairFrac> arr;
+
+    if (!readPairs("pairs.csv", arr)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    if (!writeResults("results.csv", arr)) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (pairs.csv):}
+\begin{lstlisting}
+1,2,3,4
+2,3,5,6
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (results.csv):}
+\begin{lstlisting}
+3,8,2,3
+5,9,4,5
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Chia cho 0)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (pairs.csv):}
+\begin{lstlisting}
+1,2,0,5
+3,4,7,0
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output (results.csv):}
+\begin{lstlisting}
+0,1,DIV_ZERO
+0,1,DIV_ZERO
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Case biên -- mẫu âm)}
+
+\textbf{Input (pairs.csv):}
+\begin{lstlisting}
+1,-2,1,3
+\end{lstlisting}
+
+\textbf{Expected Output (results.csv):}
+\begin{lstlisting}
+-1,6,-3,2
+\end{lstlisting}
