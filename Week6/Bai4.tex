@@ -1,110 +1,213 @@
-\section{Tổng đoạn trung bình [Trung bình]}
+\section{Trả lời truy vấn tổng vùng [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{input.txt} chứa:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Hai số nguyên $m, n$
+        \item Ma trận $m \times n$
+        \item Số nguyên $q$
+        \item $q$ truy vấn dạng $(x1,y1,x2,y2)$
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item $m = 0$ hoặc $n = 0 \rightarrow$ không xử lý
+            \item Truy vấn 1 ô: $x1=x2, y1=y2 \rightarrow$ tổng chính là $a[x1][y1]$
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+        \begin{itemize}
+            \item Hàm \texttt{readMatrix(path, vector<vector<long long>>\&, vector<Query>\&)}
+            \item Kiểm tra mở file (\texttt{fail} $\rightarrow$ \texttt{return false})
+        \end{itemize}
+
+        \item \textbf{Module 2 (Xây prefix 2D):}
+        \begin{itemize}
+            \item \texttt{pre[i][j] = a[i][j] + pre[i-1][j] + pre[i][j-1] - pre[i-1][j-1]}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Trả lời truy vấn):}
+        \begin{itemize}
+            \item Dùng công thức:
+            \begin{lstlisting}
+sum = pre[x2][y2] - pre[x1-1][y2]
+    - pre[x2][y1-1]
+    + pre[x1-1][y1-1]
+            \end{lstlisting}
+            \item Nếu chỉ số sai hoặc $x1>x2$ hoặc $y1>y2$ $\rightarrow$ in \texttt{INVALID}
+            \item Mỗi truy vấn xử lý $O(1)$
+        \end{itemize}
     \end{itemize}
 
-\subsection{Mã nguồn C++11 (Tách module)}
+    \item \textbf{Output:}
     \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <iomanip>
+<ket qua moi truy van tren 1 dong>
+    \end{lstlisting}
+\end{itemize}
 
-    using namespace std;
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
 
-    double rangeAverage(const vector<long long>& pre, int l, int r) {
-        long long sum = pre[r] - (l > 0 ? pre[l - 1] : 0);
-        return (double)sum / (r - l + 1);
+using namespace std;
+
+struct Query {
+    int x1, y1, x2, y2;
+};
+
+bool readMatrix(const string& path,
+                vector<vector<long long>>& a,
+                vector<Query>& queries) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    int m, n;
+    fin >> m >> n;
+    a.assign(m, vector<long long>(n));
+
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < n; ++j)
+            fin >> a[i][j];
+
+    int q;
+    fin >> q;
+    queries.resize(q);
+
+    for (int i = 0; i < q; ++i)
+        fin >> queries[i].x1 >> queries[i].y1
+            >> queries[i].x2 >> queries[i].y2;
+
+    return true;
+}
+
+vector<vector<long long>> buildPrefix2D(
+        const vector<vector<long long>>& a) {
+    int m = a.size();
+    if (m == 0) return {};
+
+    int n = a[0].size();
+    vector<vector<long long>> pre(m, vector<long long>(n, 0));
+
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            pre[i][j] = a[i][j];
+            if (i > 0) pre[i][j] += pre[i - 1][j];
+            if (j > 0) pre[i][j] += pre[i][j - 1];
+            if (i > 0 && j > 0) pre[i][j] -= pre[i - 1][j - 1];
+        }
+    }
+    return pre;
+}
+
+bool sumRect(const vector<vector<long long>>& pre,
+             int x1, int y1, int x2, int y2,
+             long long& ans) {
+    int m = pre.size();
+    int n = pre[0].size();
+
+    if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0 ||
+        x1 >= m || x2 >= m || y1 >= n || y2 >= n ||
+        x1 > x2 || y1 > y2)
+        return false;
+
+    ans = pre[x2][y2];
+    if (x1 > 0) ans -= pre[x1 - 1][y2];
+    if (y1 > 0) ans -= pre[x2][y1 - 1];
+    if (x1 > 0 && y1 > 0) ans += pre[x1 - 1][y1 - 1];
+
+    return true;
+}
+
+int main() {
+    vector<vector<long long>> a;
+    vector<Query> queries;
+
+    if (!readMatrix("input.txt", a, queries)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    if (a.empty() || a[0].empty()) return 0;
 
-        int n; fin_arr >> n;
-        vector<long long> pre(n);
-        for (int i = 0; i < n; ++i) {
-            long long val; fin_arr >> val;
-            pre[i] = val + (i > 0 ? pre[i - 1] : 0);
-        }
+    vector<vector<long long>> pre = buildPrefix2D(a);
 
-        fout << fixed << setprecision(6);
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) fout << "INVALID\n";
-            else fout << rangeAverage(pre, l, r) << "\n";
-        }
-        return 0;
+    for (size_t i = 0; i < queries.size(); ++i) {
+        long long ans;
+        if (sumRect(pre,
+                    queries[i].x1, queries[i].y1,
+                    queries[i].x2, queries[i].y2,
+                    ans))
+            cout << ans << "\n";
+        else
+            cout << "INVALID\n";
     }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+3 3
+1 2 3
+4 5 6
+7 8 9
+3
+0 0 1 1
+1 1 2 2
+0 2 2 2
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output:}
+\begin{lstlisting}
+12
+28
+18
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Case biên -- truy vấn 1 ô)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+2 2
+5 1
+2 7
+1
+1 1 1 1
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output:}
+\begin{lstlisting}
+7
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Truy vấn lỗi)}
+
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+2 2
+1 2
+3 4
+2
+1 1 0 0
+0 0 2 1
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+INVALID
+INVALID
+\end{lstlisting}

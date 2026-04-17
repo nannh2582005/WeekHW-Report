@@ -1,117 +1,173 @@
-\section{Sliding prefix: cập nhật 1 điểm [Nâng cao]}
+\section{Xoay ma trận 90 độ theo chiều kim đồng hồ [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{input.txt} chứa:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Hai số nguyên $m, n$
+        \item Ma trận $m \times n$
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item $m = 0$ hoặc $n = 0 \rightarrow$ không xử lý
+            \item Ma trận $1 \times 1 \rightarrow$ giữ nguyên
+            \item Ma trận kết quả có kích thước $n \times m$
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+        \begin{itemize}
+            \item Hàm \texttt{readMatrix(path, vector<vector<long long>>\&)}
+            \item Kiểm tra mở file (\texttt{fail} $\rightarrow$ \texttt{return false})
+        \end{itemize}
+
+        \item \textbf{Module 2 (Xoay ma trận):}
+        \begin{itemize}
+            \item Với mỗi phần tử $(i,j)$ của ma trận cũ:
+            \begin{lstlisting}
+new[j][m - 1 - i] = a[i][j]
+            \end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Ghi file):}
+        \begin{itemize}
+            \item Hàm \texttt{writeMatrix(path, rotated)}
+            \item Mỗi hàng là 1 dòng, các phần tử cách nhau bởi space
+        \end{itemize}
     \end{itemize}
 
-\subsection{Mã nguồn C++11 (Tách module)}
+    \item \textbf{Output:}
     \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
+Ghi ma trận kết quả ra file rotated.txt
+    \end{lstlisting}
+\end{itemize}
 
-    using namespace std;
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
 
-    void rebuildPrefix(const vector<long long>& a, vector<long long>& pre) {
-        if (a.empty()) return;
-        pre[0] = a[0];
-        for (size_t i = 1; i < a.size(); ++i) pre[i] = pre[i - 1] + a[i];
-    }
+using namespace std;
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+bool readMatrix(const string& path, vector<vector<long long>>& a) {
+    ifstream fin(path);
+    if (!fin) return false;
 
-        int n; fin >> n;
-        vector<long long> a(n), pre(n);
-        for (int i = 0; i < n; ++i) fin >> a[i];
-        rebuildPrefix(a, pre);
+    int m, n;
+    fin >> m >> n;
+    a.assign(m, vector<long long>(n));
 
-        int q; fin >> q;
-        while (q--) {
-            char type; fin >> type;
-            if (type == 'U') {
-                int i; long long val;
-                fin >> i >> val;
-                if (i >= 0 && i < n) {
-                    a[i] = val;
-                    rebuildPrefix(a, pre);
-                }
-            } else if (type == 'Q') {
-                int l, r; fin >> l >> r;
-                if (l < 0 || r >= n || l > r) fout << "INVALID\n";
-                else fout << pre[r] - (l > 0 ? pre[l - 1] : 0) << "\n";
-            }
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < n; ++j)
+            fin >> a[i][j];
+
+    return true;
+}
+
+vector<vector<long long>> rotateClockwise(
+        const vector<vector<long long>>& a) {
+    int m = a.size();
+    if (m == 0) return {};
+
+    int n = a[0].size();
+    vector<vector<long long>> b(n, vector<long long>(m));
+
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < n; ++j)
+            b[j][m - 1 - i] = a[i][j];
+
+    return b;
+}
+
+bool writeMatrix(const string& path,
+                 const vector<vector<long long>>& a) {
+    ofstream fout(path);
+    if (!fout) return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        for (size_t j = 0; j < a[i].size(); ++j) {
+            if (j > 0) fout << " ";
+            fout << a[i][j];
         }
-        return 0;
+        fout << "\n";
     }
+
+    return true;
+}
+
+int main() {
+    vector<vector<long long>> a;
+
+    if (!readMatrix("input.txt", a)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    if (a.empty() || a[0].empty()) return 0;
+
+    vector<vector<long long>> rotated =
+        rotateClockwise(a);
+
+    if (!writeMatrix("rotated.txt", rotated)) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+2 3
+1 2 3
+4 5 6
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (rotated.txt):}
+\begin{lstlisting}
+4 1
+5 2
+6 3
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Ma trận vuông)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+3 3
+1 2 3
+4 5 6
+7 8 9
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output (rotated.txt):}
+\begin{lstlisting}
+7 4 1
+8 5 2
+9 6 3
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Case biên -- 1x1)}
+
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+1 1
+9
+\end{lstlisting}
+
+\textbf{Expected Output (rotated.txt):}
+\begin{lstlisting}
+9
+\end{lstlisting}

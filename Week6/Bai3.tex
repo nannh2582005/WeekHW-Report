@@ -1,111 +1,181 @@
-\section{Đếm phần tử không âm trong đoạn [Cơ bản]}
+\section{Xây dựng prefix sum 2D [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
+
+\begin{itemize}
+    \item \textbf{Input:}  
+    File \texttt{matrix.txt} chứa:
     \begin{itemize}
-    \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
-    \begin{itemize}
+        \item Số nguyên $m$
         \item Số nguyên $n$
-        \item $n$ số thực
+        \item Ma trận $m \times n$ số nguyên
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item $1 \times 1 \rightarrow pre[0][0] = a[0][0]$
+            \item $m=0$ hoặc $n=0 \rightarrow$ file output rỗng
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+\begin{lstlisting}
+readMatrix(path, vector<vector<long long>>&)
+\end{lstlisting}
+
+        \item \textbf{Module 2 (Xây dựng prefix sum 2D):}
+        \begin{itemize}
+            \item Công thức:
+\begin{lstlisting}
+pre[i][j] = a[i][j]
+          + pre[i-1][j]
+          + pre[i][j-1]
+          - pre[i-1][j-1]
+\end{lstlisting}
+            \item Nếu $i=0$ thì phần trên bằng $0$
+            \item Nếu $j=0$ thì phần trái bằng $0$
+        \end{itemize}
+
+        \item \textbf{Module 3 (Ghi file):}
+        \begin{itemize}
+            \item File \texttt{pre2D.txt}
+            \item Mỗi dòng:
+\begin{lstlisting}
+i j pre[i][j]
+\end{lstlisting}
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+0 0 ...
+0 1 ...
+...
+\end{lstlisting}
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
 
-    bool countNonNegative(const vector<int>& pre_b, int l, int r, int& ans) {
-        if (l < 0 || r >= pre_b.size() || l > r) return false;
-        ans = pre_b[r] - (l > 0 ? pre_b[l - 1] : 0);
-        return true;
+using namespace std;
+
+typedef vector<vector<long long>> Matrix;
+
+bool readMatrix(const string& path, Matrix& a) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    int m, n;
+    fin >> m >> n;
+
+    a.assign(m, vector<long long>(n));
+
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++)
+            fin >> a[i][j];
+
+    return true;
+}
+
+Matrix buildPre2D(const Matrix& a) {
+    int m = a.size();
+    Matrix pre;
+
+    if (m == 0) return pre;
+
+    int n = a[0].size();
+    pre.assign(m, vector<long long>(n, 0));
+
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            long long up = (i > 0) ? pre[i - 1][j] : 0;
+            long long left = (j > 0) ? pre[i][j - 1] : 0;
+            long long diag = (i > 0 && j > 0) ? pre[i - 1][j - 1] : 0;
+
+            pre[i][j] = a[i][j] + up + left - diag;
+        }
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi mo file!\n"; return 1; }
+    return pre;
+}
 
-        int n; fin_arr >> n;
-        vector<int> pre_b(n);
-        for (int i = 0; i < n; ++i) {
-            long long val; fin_arr >> val;
-            int b = (val >= 0 ? 1 : 0);
-            pre_b[i] = b + (i > 0 ? pre_b[i - 1] : 0);
-        }
+bool writeFile(const string& path, const Matrix& pre) {
+    ofstream fout(path);
+    if (!fout) return false;
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            int ans;
-            if (countNonNegative(pre_b, l, r, ans)) fout << ans << "\n";
-            else fout << "INVALID\n";
+    for (int i = 0; i < (int)pre.size(); i++) {
+        for (int j = 0; j < (int)pre[i].size(); j++) {
+            fout << i << " " << j << " " << pre[i][j] << "\n";
         }
-        return 0;
     }
+
+    return true;
+}
+
+int main() {
+    Matrix a;
+
+    if (!readMatrix("matrix.txt", a)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    Matrix pre = buildPre2D(a);
+
+    if (!writeFile("pre2D.txt", pre)) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (matrix.txt):}
+\begin{lstlisting}
+2 3
+1 2 3
+4 5 6
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (pre2D.txt):}
+\begin{lstlisting}
+0 0 1
+0 1 3
+0 2 6
+1 0 5
+1 1 12
+1 2 21
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Test Case 2}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Input (matrix.txt):}
+\begin{lstlisting}
+1 1
+9
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (pre2D.txt):}
+\begin{lstlisting}
+0 0 9
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Test Case 3}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (matrix.txt):}
+\begin{lstlisting}
+0 0
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Expected Output:}
+
+File rỗng.

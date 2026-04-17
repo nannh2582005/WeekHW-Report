@@ -1,114 +1,197 @@
-\section{Phần tử xuất hiện nhiều nhất trong đoạn [Trung bình]}
+\section{Rolling standard deviation [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
-    \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+\begin{itemize}
+    \item \textbf{Input:} File \texttt{input.txt} chứa:
     \begin{itemize}
         \item Số nguyên $n$
         \item $n$ số thực
+        \item Số nguyên $k$
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item $n=0$ $\rightarrow$ ghi chỉ header
+            \item $k>n$ $\rightarrow$ không có cửa sổ nào, ghi chỉ header
+            \item $k=n$ $\rightarrow$ đúng 1 cửa sổ
+            \item $k=1$ $\rightarrow$ std = 0
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+\begin{lstlisting}
+readInput(path, vector<double>&, int&)
+\end{lstlisting}
+
+        \item \textbf{Module 2 (Tính rolling std):}
+        \begin{itemize}
+            \item Công thức:
+\begin{lstlisting}
+Var = E[X^2] - (E[X])^2
+\end{lstlisting}
+            \item Lưu \texttt{sum} và \texttt{sumSq}
+            \item Cập nhật mỗi bước $O(1)$
+            \item \texttt{std = sqrt(var)}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Ghi file CSV):}
+        \begin{itemize}
+            \item File \texttt{rolling\_std.csv}
+            \item Header: \texttt{i,std}
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+i,std
+0,...
+1,...
+\end{lstlisting}
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <iomanip>
+#include <cmath>
+using namespace std;
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+bool readInput(const string& path, vector<double>& a, int& k) {
+    ifstream fin(path);
+    if (!fin) return false;
 
-        int n; fin_arr >> n;
-        vector<vector<int>> pre(101, vector<int>(n + 1, 0));
-        
-        for (int i = 1; i <= n; ++i) {
-            int val; fin_arr >> val;
-            for (int v = 0; v <= 100; ++v) pre[v][i] = pre[v][i - 1];
-            if (val >= 0 && val <= 100) pre[val][i]++;
-        }
+    int n;
+    fin >> n;
+    a.resize(n);
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) { fout << "INVALID\n"; continue; }
-            
-            int max_freq = -1, best_val = -1;
-            for (int v = 0; v <= 100; ++v) {
-                int freq = pre[v][r + 1] - pre[v][l];
-                if (freq > max_freq) {
-                    max_freq = freq;
-                    best_val = v;
-                }
-            }
-            fout << best_val << "\n";
-        }
-        return 0;
+    for (int i = 0; i < n; i++) fin >> a[i];
+    fin >> k;
+    return true;
+}
+
+vector<double> rollingStd(const vector<double>& a, int k) {
+    int n = a.size();
+    vector<double> ans;
+
+    if (n == 0 || k <= 0 || k > n) return ans;
+
+    if (k == 1) {
+        for (int i = 0; i < n; i++) ans.push_back(0.0);
+        return ans;
     }
+
+    long double sum = 0.0, sumSq = 0.0;
+
+    for (int i = 0; i < k; i++) {
+        sum += a[i];
+        sumSq += a[i] * a[i];
+    }
+
+    for (int start = 0; start + k <= n; start++) {
+        long double mean = sum / k;
+        long double var = sumSq / k - mean * mean;
+
+        if (var < 0) var = 0;
+        ans.push_back((double)sqrt((double)var));
+
+        if (start + k < n) {
+            double oldVal = a[start];
+            double newVal = a[start + k];
+
+            sum += newVal - oldVal;
+            sumSq += newVal * newVal - oldVal * oldVal;
+        }
+    }
+
+    return ans;
+}
+
+bool writeCSV(const string& path, const vector<double>& v) {
+    ofstream fout(path);
+    if (!fout) return false;
+
+    fout << "i,std\n";
+    fout << fixed << setprecision(6);
+
+    for (int i = 0; i < (int)v.size(); i++) {
+        fout << i << "," << v[i] << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+    vector<double> a;
+    int k;
+
+    if (!readInput("input.txt", a, k)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    vector<double> ans = rollingStd(a, k);
+
+    if (!writeCSV("rolling_std.csv", ans)) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+5
+1 2 3 4 5
+2
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (rolling\_std.csv):}
+\begin{lstlisting}
+i,std
+0,0.500000
+1,0.500000
+2,0.500000
+3,0.500000
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Test Case 2}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+4
+2 8 1 6
+1
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (rolling\_std.csv):}
+\begin{lstlisting}
+i,std
+0,0.000000
+1,0.000000
+2,0.000000
+3,0.000000
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Test Case 3}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+3
+1 2 3
+5
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Expected Output (rolling\_std.csv):}
+\begin{lstlisting}
+i,std
+\end{lstlisting}

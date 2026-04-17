@@ -1,130 +1,156 @@
-\section{Prefix product modulo M [Trung bình]}
+\section{Kiểm tra ma trận tam giác [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{input.txt} chứa:
     \begin{itemize}
         \item Số nguyên $n$
-        \item $n$ số thực
+        \item Ma trận vuông $n \times n$
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item $n = 0 \rightarrow$ không xử lý
+            \item $n = 1 \rightarrow$ vừa là ma trận tam giác trên, vừa là tam giác dưới
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+        \begin{itemize}
+            \item Hàm \texttt{readMatrix(path, vector<vector<long long>>\&)}
+            \item Kiểm tra mở file (\texttt{fail} $\rightarrow$ \texttt{return false})
+        \end{itemize}
+
+        \item \textbf{Module 2 (Kiểm tra tam giác trên):}
+        \begin{itemize}
+            \item Với mọi $i > j$ thì $a[i][j] = 0$
+            \item Nếu tồn tại phần tử khác 0 $\rightarrow$ \texttt{is\_upper = 0}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Kiểm tra tam giác dưới):}
+        \begin{itemize}
+            \item Với mọi $i < j$ thì $a[i][j] = 0$
+            \item Nếu tồn tại phần tử khác 0 $\rightarrow$ \texttt{is\_lower = 0}
+        \end{itemize}
     \end{itemize}
 
-\subsection{Mã nguồn C++11 (Tách module)}
+    \item \textbf{Output:}
     \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
+is_upper=<0/1> / is_lower=<0/1>
+    \end{lstlisting}
+\end{itemize}
 
-    using namespace std;
+\subsection{Mã nguồn C++11 (Tách module)}
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
 
-    long long power(long long base, long long exp, long long mod) {
-        long long res = 1;
-        base %= mod;
-        while (exp > 0) {
-            if (exp % 2 == 1) res = (res * base) % mod;
-            base = (base * base) % mod;
-            exp /= 2;
-        }
-        return res;
+using namespace std;
+
+bool readMatrix(const string& path, vector<vector<long long>>& a) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    int n;
+    fin >> n;
+    a.assign(n, vector<long long>(n));
+
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            fin >> a[i][j];
+
+    return true;
+}
+
+bool isUpperTriangular(const vector<vector<long long>>& a) {
+    int n = a.size();
+
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < i; ++j)
+            if (a[i][j] != 0)
+                return false;
+
+    return true;
+}
+
+bool isLowerTriangular(const vector<vector<long long>>& a) {
+    int n = a.size();
+
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            if (a[i][j] != 0)
+                return false;
+
+    return true;
+}
+
+int main() {
+    vector<vector<long long>> a;
+
+    if (!readMatrix("input.txt", a)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
     }
 
-    long long modInverse(long long n, long long M) {
-        return power(n, M - 2, M);
-    }
+    if (a.empty()) return 0;
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    bool upper = isUpperTriangular(a);
+    bool lower = isLowerTriangular(a);
 
-        int n; long long M; 
-        fin_arr >> n >> M;
-        vector<long long> pre(n + 1, 1);
-        vector<int> zeros(n + 1, 0);
+    cout << "is_upper=" << upper
+         << " / is_lower=" << lower;
 
-        for (int i = 1; i <= n; ++i) {
-            long long val; fin_arr >> val;
-            zeros[i] = zeros[i - 1] + (val == 0 ? 1 : 0);
-            val = (val == 0 ? 1 : val % M); // Giữ pre khác 0 để tránh chia 0
-            pre[i] = (pre[i - 1] * val) % M;
-        }
-
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) { fout << "INVALID\n"; continue; }
-            
-            int zero_count = zeros[r + 1] - zeros[l];
-            if (zero_count > 0) {
-                fout << "INVALID\n";
-            } else {
-                long long ans = (pre[r + 1] * modInverse(pre[l], M)) % M;
-                fout << ans << "\n";
-            }
-        }
-        return 0;
-    }
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Tam giác trên)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+3
+1 2 3
+0 4 5
+0 0 6
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output:}
+\begin{lstlisting}
+is_upper=1 / is_lower=0
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Tam giác dưới)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+3
+1 0 0
+2 3 0
+4 5 6
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output:}
+\begin{lstlisting}
+is_upper=0 / is_lower=1
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Case biên -- n=1)}
+
+\textbf{Input (input.txt):}
+\begin{lstlisting}
+1
+9
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+is_upper=1 / is_lower=1
+\end{lstlisting}
