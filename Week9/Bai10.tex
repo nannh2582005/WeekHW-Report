@@ -1,32 +1,440 @@
+\section{TF-IDF đơn giản trên tập file [Nâng cao]}
+\subsection{Phân tích \& Thiết kế (M0)}
+
+\begin{itemize}
+
+    \item \textbf{Input:}
+
+    File \texttt{index.txt} chứa danh sách file văn bản.
+
+    \begin{itemize}
+        \item Mỗi dòng là tên một file
+        \item Các file chứa văn bản ASCII
+    \end{itemize}
+
+    \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
+        \begin{itemize}
+            \item \texttt{index.txt} rỗng
+            $\rightarrow$
+            output rỗng
+            \item File văn bản rỗng
+            $\rightarrow$
+            không có token
+            \item Một từ xuất hiện ở mọi file
+            $\rightarrow$
+            IDF = 0
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc danh sách file):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readIndex(path, vector<string>&)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc từng file):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readLines(path, vector<string>&)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Normalize):}
+
+        \begin{itemize}
+            \item Chuyển lowercase
+            \item Ký tự không phải chữ/số
+            $\rightarrow$
+            space
+            \item Gom nhiều space thành 1
+        \end{itemize}
+
+        \item \textbf{Module 4 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+vector<string> tokenize(...)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Tính TF):}
+
+        \begin{itemize}
+            \item:
+\begin{lstlisting}
+TF(w,d) =
+count(w,d) / total_tokens(d)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 6 (Tính DF và IDF):}
+
+        \begin{itemize}
+            \item:
+\begin{lstlisting}
+df(w) = số file chứa w
+\end{lstlisting}
+
+            \item:
+\begin{lstlisting}
+IDF(w) = log(N / df(w))
+\end{lstlisting}
+
+            \item \texttt{N}:
+            số lượng file
+        \end{itemize}
+
+        \item \textbf{Module 7 (Tính TF-IDF):}
+
+        \begin{itemize}
+            \item:
+\begin{lstlisting}
+TFIDF = TF * IDF
+\end{lstlisting}
+
+            \item Sort:
+            \begin{itemize}
+                \item Giảm dần theo TF-IDF
+                \item Nếu bằng nhau
+                $\rightarrow$
+                tăng dần lexicographic
+            \end{itemize}
+
+            \item Chỉ lấy top-5 từ mỗi file
+        \end{itemize}
+
+        \item \textbf{Module 8 (Ghi output):}
+
+        \begin{itemize}
+            \item File:
+\begin{lstlisting}
+tfidf.csv
+\end{lstlisting}
+
+            \item Format:
+\begin{lstlisting}
+file,word,tfidf
+\end{lstlisting}
+
+            \item Dùng:
+\begin{lstlisting}
+setprecision(6)
+\end{lstlisting}
+        \end{itemize}
+
+    \end{itemize}
+
+    \item \textbf{Output:}
+
+\begin{lstlisting}
+file,word,tfidf
+\end{lstlisting}
+
+\end{itemize}
+
+\subsection{Mã nguồn C++11 (Tách module)}
+
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <sstream>
+#include <algorithm>
+#include <iomanip>
+#include <cmath>
+#include <cctype>
+
+using namespace std;
+
+struct TFIDFRow {
+    string file;
+    string word;
+    double tfidf;
+};
+
+bool readIndex(const string& path,
+               vector<string>& files) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        if (!s.empty()) {
+
+            files.push_back(s);
+        }
+    }
+
+    return true;
+}
+
+bool readLines(const string& path,
+               vector<string>& lines) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        lines.push_back(s);
+    }
+
+    return true;
+}
+
+string normalizeLine(const string& s) {
+
+    string result;
+
+    bool lastSpace = true;
+
+    for (char c : s) {
+
+        if (isalnum((unsigned char)c)) {
+
+            result +=
+                (char)tolower((unsigned char)c);
+
+            lastSpace = false;
+        }
+        else {
+
+            if (!lastSpace) {
+
+                result += ' ';
+                lastSpace = true;
+            }
+        }
+    }
+
+    if (!result.empty() &&
+        result.back() == ' ') {
+
+        result.pop_back();
+    }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& normalized) {
+
+    vector<string> tokens;
+
+    stringstream ss(normalized);
+
+    string token;
+
+    while (ss >> token) {
+
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+bool writeTFIDF(
+    const string& path,
+    const vector<TFIDFRow>& rows) {
+
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed
+         << setprecision(6);
+
+    for (const TFIDFRow& r : rows) {
+
+        fout << r.file
+             << ","
+             << r.word
+             << ","
+             << r.tfidf
+             << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<string> files;
+
+    if (!readIndex("index.txt", files)) {
+
+        cerr << "Loi mo index!\n";
+        return 1;
+    }
+
+    int N = files.size();
+
+    vector<
+        unordered_map<string,int>
+    > fileFreqs(N);
+
+    vector<int> totalTokens(N, 0);
+
+    unordered_map<string,int> df;
+
+    for (int i = 0; i < N; ++i) {
+
+        vector<string> lines;
+
+        if (!readLines(files[i], lines)) {
+
+            cerr << "Loi mo file!\n";
+            return 1;
+        }
+
+        unordered_set<string> seen;
+
+        for (const string& s : lines) {
+
+            string normalized =
+                normalizeLine(s);
+
+            vector<string> tokens =
+                tokenize(normalized);
+
+            for (const string& token : tokens) {
+
+                fileFreqs[i][token]++;
+
+                totalTokens[i]++;
+
+                seen.insert(token);
+            }
+        }
+
+        for (const string& w : seen) {
+
+            df[w]++;
+        }
+    }
+
+    vector<TFIDFRow> rows;
+
+    for (int i = 0; i < N; ++i) {
+
+        // Tránh chia cho 0 nếu file rỗng
+        if (totalTokens[i] == 0) {
+            continue;
+        }
+
+        vector<pair<string,double>> scores;
+
+        for (const auto& p :
+             fileFreqs[i]) {
+
+            const string& word =
+                p.first;
+
+            int count =
+                p.second;
+
+            double tf =
+                (double)count
+                / totalTokens[i];
+
+            double idf =
+                log(
+                    (double)N
+                    / df[word]
+                );
+
+            double tfidf =
+                tf * idf;
+
+            scores.push_back({
+                word,
+                tfidf
+            });
+        }
+
+        sort(scores.begin(),
+             scores.end(),
+             [](const pair<string,double>& a,
+                const pair<string,double>& b) {
+
+            if (a.second != b.second)
+                return a.second > b.second;
+
+            return a.first < b.first;
+        });
+
+        int limit =
+            min(5,
+                (int)scores.size());
+
+        for (int j = 0;
+             j < limit;
+             ++j) {
+
+            rows.push_back({
+                files[i],
+                scores[j].first,
+                scores[j].second
+            });
+        }
+    }
+
+    if (!writeTFIDF("tfidf.csv",
+                    rows)) {
+
+        cerr << "Loi mo output!\n";
+        return 1;
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
 \textbf{Test Case 1 (Thông thường)}
 
 \textbf{Input (index.txt):}
+
 \begin{lstlisting}
 doc1.txt
 doc2.txt
 \end{lstlisting}
 
 \textbf{Input (doc1.txt):}
+
 \begin{lstlisting}
 apple banana apple
 \end{lstlisting}
 
 \textbf{Input (doc2.txt):}
+
 \begin{lstlisting}
 banana orange
 \end{lstlisting}
 
-\textbf{Giải thích tính toán:}
-\begin{itemize}
-    \item $N = 2$.
-    \item \texttt{apple}: $df=1 \Rightarrow IDF = \ln(2/1) \approx 0.693147$. Trong doc1: $TF = 2/3 \Rightarrow TFIDF \approx 0.462098$.
-    \item \texttt{banana}: $df=2 \Rightarrow IDF = \ln(2/2) = 0$.
-    \item \texttt{orange}: $df=1 \Rightarrow IDF = \ln(2/1) \approx 0.693147$. Trong doc2: $TF = 1/2 \Rightarrow TFIDF \approx 0.346574$.
-\end{itemize}
-
 \textbf{Expected Output (tfidf.csv):}
+
 \begin{lstlisting}
 doc1.txt,apple,0.462098
 doc1.txt,banana,0.000000
@@ -39,40 +447,48 @@ doc2.txt,banana,0.000000
 \textbf{Test Case 2 (Case biên -- file rỗng)}
 
 \textbf{Input (index.txt):}
+
 \begin{lstlisting}
 empty.txt
 \end{lstlisting}
 
 \textbf{Input (empty.txt):}
+
 \begin{lstlisting}
+
 \end{lstlisting}
 
 \textbf{Expected Output (tfidf.csv):}
+
 \begin{lstlisting}
+
 \end{lstlisting}
-\textit{(Giải thích: Mã nguồn kiểm tra totalTokens == 0 và bỏ qua file rỗng)}
 
 \vspace{0.5cm}
 
 \textbf{Test Case 3 (Từ xuất hiện mọi file)}
 
 \textbf{Input (index.txt):}
+
 \begin{lstlisting}
 a.txt
 b.txt
 \end{lstlisting}
 
 \textbf{Input (a.txt):}
+
 \begin{lstlisting}
 hello world
 \end{lstlisting}
 
 \textbf{Input (b.txt):}
+
 \begin{lstlisting}
 hello ktlt
 \end{lstlisting}
 
 \textbf{Expected Output (tfidf.csv):}
+
 \begin{lstlisting}
 a.txt,world,0.346574
 a.txt,hello,0.000000
