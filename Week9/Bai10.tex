@@ -1,129 +1,499 @@
-\section{Đoạn đẹp nhất theo nhiều tiêu chí[Nâng cao]}
+\section{TF-IDF đơn giản trên tập file [Nâng cao]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{index.txt} chứa danh sách file văn bản.
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng là tên một file
+        \item Các file chứa văn bản ASCII
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item \texttt{index.txt} rỗng
+            $\rightarrow$
+            output rỗng
+            \item File văn bản rỗng
+            $\rightarrow$
+            không có token
+            \item Một từ xuất hiện ở mọi file
+            $\rightarrow$
+            IDF = 0
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc danh sách file):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readIndex(path, vector<string>&)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc từng file):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readLines(path, vector<string>&)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Normalize):}
+
+        \begin{itemize}
+            \item Chuyển lowercase
+            \item Ký tự không phải chữ/số
+            $\rightarrow$
+            space
+            \item Gom nhiều space thành 1
+        \end{itemize}
+
+        \item \textbf{Module 4 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+vector<string> tokenize(...)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Tính TF):}
+
+        \begin{itemize}
+            \item:
+\begin{lstlisting}
+TF(w,d) =
+count(w,d) / total_tokens(d)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 6 (Tính DF và IDF):}
+
+        \begin{itemize}
+            \item:
+\begin{lstlisting}
+df(w) = số file chứa w
+\end{lstlisting}
+
+            \item:
+\begin{lstlisting}
+IDF(w) = log(N / df(w))
+\end{lstlisting}
+
+            \item \texttt{N}:
+            số lượng file
+        \end{itemize}
+
+        \item \textbf{Module 7 (Tính TF-IDF):}
+
+        \begin{itemize}
+            \item:
+\begin{lstlisting}
+TFIDF = TF * IDF
+\end{lstlisting}
+
+            \item Sort:
+            \begin{itemize}
+                \item Giảm dần theo TF-IDF
+                \item Nếu bằng nhau
+                $\rightarrow$
+                tăng dần lexicographic
+            \end{itemize}
+
+            \item Chỉ lấy top-5 từ mỗi file
+        \end{itemize}
+
+        \item \textbf{Module 8 (Ghi output):}
+
+        \begin{itemize}
+            \item File:
+\begin{lstlisting}
+tfidf.csv
+\end{lstlisting}
+
+            \item Format:
+\begin{lstlisting}
+file,word,tfidf
+\end{lstlisting}
+
+            \item Dùng:
+\begin{lstlisting}
+setprecision(6)
+\end{lstlisting}
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+\begin{lstlisting}
+file,word,tfidf
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <iomanip>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <sstream>
+#include <algorithm>
+#include <iomanip>
+#include <cmath>
+#include <cctype>
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_cfg("config.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_cfg || !fout) { cerr << "Loi file!\n"; return 1; }
+using namespace std;
 
-        int n; fin_arr >> n;
-        vector<double> pre(n + 1, 0.0);
-        for (int i = 1; i <= n; ++i) {
-            double val; fin_arr >> val;
-            pre[i] = pre[i - 1] + val;
+struct TFIDFRow {
+    string file;
+    string word;
+    double tfidf;
+};
+
+bool readIndex(const string& path,
+               vector<string>& files) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        if (!s.empty()) {
+
+            files.push_back(s);
+        }
+    }
+
+    return true;
+}
+
+bool readLines(const string& path,
+               vector<string>& lines) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        lines.push_back(s);
+    }
+
+    return true;
+}
+
+string normalizeLine(const string& s) {
+
+    string result;
+
+    bool lastSpace = true;
+
+    for (char c : s) {
+
+        if (isalnum((unsigned char)c)) {
+
+            result +=
+                (char)tolower((unsigned char)c);
+
+            lastSpace = false;
+        }
+        else {
+
+            if (!lastSpace) {
+
+                result += ' ';
+                lastSpace = true;
+            }
+        }
+    }
+
+    if (!result.empty() &&
+        result.back() == ' ') {
+
+        result.pop_back();
+    }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& normalized) {
+
+    vector<string> tokens;
+
+    stringstream ss(normalized);
+
+    string token;
+
+    while (ss >> token) {
+
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+bool writeTFIDF(
+    const string& path,
+    const vector<TFIDFRow>& rows) {
+
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed
+         << setprecision(6);
+
+    for (const TFIDFRow& r : rows) {
+
+        fout << r.file
+             << ","
+             << r.word
+             << ","
+             << r.tfidf
+             << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<string> files;
+
+    if (!readIndex("index.txt", files)) {
+
+        cerr << "Loi mo index!\n";
+        return 1;
+    }
+
+    int N = files.size();
+
+    vector<
+        unordered_map<string,int>
+    > fileFreqs(N);
+
+    vector<int> totalTokens(N, 0);
+
+    unordered_map<string,int> df;
+
+    for (int i = 0; i < N; ++i) {
+
+        vector<string> lines;
+
+        if (!readLines(files[i], lines)) {
+
+            cerr << "Loi mo file!\n";
+            return 1;
         }
 
-        int minLen; fin_cfg >> minLen;
+        unordered_set<string> seen;
 
-        double max_mean = -1e18;
-        int bestL = -1, bestR = -1, bestLen = -1;
+        for (const string& s : lines) {
 
-        for (int l = 0; l < n; ++l) {
-            for (int r = l + minLen - 1; r < n; ++r) {
-                int len = r - l + 1;
-                double mean = (pre[r + 1] - pre[l]) / len;
-                
-                bool better = false;
-                // Độ chính xác float epsilon
-                if (mean > max_mean + 1e-9) better = true;
-                else if (abs(mean - max_mean) <= 1e-9) {
-                    if (len > bestLen) better = true;
-                    else if (len == bestLen && l < bestL) better = true;
-                }
+            string normalized =
+                normalizeLine(s);
 
-                if (better) {
-                    max_mean = mean;
-                    bestLen = len;
-                    bestL = l;
-                    bestR = r;
-                }
+            vector<string> tokens =
+                tokenize(normalized);
+
+            for (const string& token : tokens) {
+
+                fileFreqs[i][token]++;
+
+                totalTokens[i]++;
+
+                seen.insert(token);
             }
         }
 
-        if (bestL != -1) {
-            fout << fixed << setprecision(6);
-            fout << max_mean << " " << bestL << " " << bestR << " " << bestLen << "\n";
+        for (const string& w : seen) {
+
+            df[w]++;
         }
-        return 0;
     }
+
+    vector<TFIDFRow> rows;
+
+    for (int i = 0; i < N; ++i) {
+
+        // Tránh chia cho 0 nếu file rỗng
+        if (totalTokens[i] == 0) {
+            continue;
+        }
+
+        vector<pair<string,double>> scores;
+
+        for (const auto& p :
+             fileFreqs[i]) {
+
+            const string& word =
+                p.first;
+
+            int count =
+                p.second;
+
+            double tf =
+                (double)count
+                / totalTokens[i];
+
+            double idf =
+                log(
+                    (double)N
+                    / df[word]
+                );
+
+            double tfidf =
+                tf * idf;
+
+            scores.push_back({
+                word,
+                tfidf
+            });
+        }
+
+        sort(scores.begin(),
+             scores.end(),
+             [](const pair<string,double>& a,
+                const pair<string,double>& b) {
+
+            if (a.second != b.second)
+                return a.second > b.second;
+
+            return a.first < b.first;
+        });
+
+        int limit =
+            min(5,
+                (int)scores.size());
+
+        for (int j = 0;
+             j < limit;
+             ++j) {
+
+            rows.push_back({
+                files[i],
+                scores[j].first,
+                scores[j].second
+            });
+        }
+    }
+
+    if (!writeTFIDF("tfidf.csv",
+                    rows)) {
+
+        cerr << "Loi mo output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (index.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+doc1.txt
+doc2.txt
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Input (doc1.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+apple banana apple
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (doc2.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+banana orange
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Expected Output (tfidf.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+doc1.txt,apple,...
+doc1.txt,banana,...
+doc2.txt,orange,...
+doc2.txt,banana,...
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- file rỗng)}
+
+\textbf{Input (index.txt):}
+
+\begin{lstlisting}
+empty.txt
+\end{lstlisting}
+
+\textbf{Input (empty.txt):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Output (tfidf.csv):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Từ xuất hiện mọi file)}
+
+\textbf{Input (index.txt):}
+
+\begin{lstlisting}
+a.txt
+b.txt
+\end{lstlisting}
+
+\textbf{Input (a.txt):}
+
+\begin{lstlisting}
+hello world
+\end{lstlisting}
+
+\textbf{Input (b.txt):}
+
+\begin{lstlisting}
+hello chatgpt
+\end{lstlisting}
+
+\textbf{Expected:}
+
+\begin{itemize}
+    \item \texttt{hello} có:
+\begin{lstlisting}
+idf = log(2/2) = 0
+\end{lstlisting}
+
+    \item TF-IDF của \texttt{hello} bằng 0
+\end{itemize}

@@ -1,113 +1,235 @@
-\section{Trả lời truy vấn tổng đoạn[Cơ bản]}
+\section{Tokenize và đếm từ [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
-    \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
-    \end{itemize}
+
+    File \texttt{text.txt} chứa nhiều dòng văn bản ASCII.
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item File rỗng $\rightarrow$ total=0, unique=0
+            \item Dòng rỗng $\rightarrow$ không sinh token
+            \item Dòng chỉ punctuation $\rightarrow$ không sinh token
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readLines(path, vector<string>\&)}
+            \item Kiểm tra mở file
+        \end{itemize}
+
+        \item \textbf{Module 2 (Normalize chuỗi):}
+
+        \begin{itemize}
+            \item Hàm \texttt{normalizeLine(const string\& s)}
+            \item Chuyển lowercase
+            \item Ký tự không phải chữ/số $\rightarrow$ space
+            \item Gom nhiều space thành 1
+        \end{itemize}
+
+        \item \textbf{Module 3 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm \texttt{tokenize(const string\& normalized)}
+            \item Tách token theo khoảng trắng
+        \end{itemize}
+
+        \item \textbf{Module 4 (Đếm tần suất):}
+
+        \begin{itemize}
+            \item Dùng:
+\begin{lstlisting}
+unordered_map<string,int> freq
+\end{lstlisting}
+
+            \item Đếm:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item Tổng số token
+                \item Số token duy nhất
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
     \end{itemize}
 
+    \item \textbf{Output:}
+
+\begin{lstlisting}
+total_tokens=<n> / unique_tokens=<m>
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <unordered_map>
+#include <sstream>
+#include <cctype>
 
-    bool sumRange(const vector<long long>& pre, int l, int r, long long& ans) {
-        if (l < 0 || r >= pre.size() || l > r) return false;
-        ans = pre[r] - (l > 0 ? pre[l - 1] : 0);
-        return true;
+using namespace std;
+
+bool readLines(const string& path,
+               vector<string>& lines) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+        lines.push_back(s);
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) {
-            cerr << "Loi mo file!\n";
-            return 1;
-        }
+    return true;
+}
 
-        int n; fin_arr >> n;
-        vector<long long> a(n), pre(n);
-        for (int i = 0; i < n; ++i) {
-            fin_arr >> a[i];
-            pre[i] = a[i] + (i > 0 ? pre[i - 1] : 0);
-        }
+string normalizeLine(const string& s) {
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            long long ans;
-            if (sumRange(pre, l, r, ans)) fout << ans << "\n";
-            else fout << "INVALID\n";
+    string result;
+
+    bool lastSpace = true;
+
+    for (char c : s) {
+
+        if (isalnum((unsigned char)c)) {
+
+            result +=
+                (char)tolower((unsigned char)c);
+
+            lastSpace = false;
         }
-        return 0;
+        else {
+
+            if (!lastSpace) {
+
+                result += ' ';
+                lastSpace = true;
+            }
+        }
     }
+
+    if (!result.empty() &&
+        result.back() == ' ') {
+
+        result.pop_back();
+    }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& normalized) {
+
+    vector<string> tokens;
+
+    stringstream ss(normalized);
+
+    string token;
+
+    while (ss >> token) {
+
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+int main() {
+
+    vector<string> lines;
+
+    if (!readLines("text.txt", lines)) {
+
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    unordered_map<string, int> freq;
+
+    int totalTokens = 0;
+
+    for (const string& s : lines) {
+
+        string normalized =
+            normalizeLine(s);
+
+        vector<string> tokens =
+            tokenize(normalized);
+
+        for (const string& token : tokens) {
+
+            freq[token]++;
+            totalTokens++;
+        }
+    }
+
+    cout << "total_tokens="
+         << totalTokens
+         << " / unique_tokens="
+         << freq.size();
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (text.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+Hello world!!!
+Hello C++ world
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output:}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+total_tokens=5 / unique_tokens=3
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Test Case 2 (Case biên -- file rỗng)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (text.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Output:}
+
+\begin{lstlisting}
+total_tokens=0 / unique_tokens=0
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- chỉ punctuation)}
+
+\textbf{Input (text.txt):}
+
+\begin{lstlisting}
+!!! ??? ###
+\end{lstlisting}
+
+\textbf{Expected Output:}
+
+\begin{lstlisting}
+total_tokens=0 / unique_tokens=0
+\end{lstlisting}

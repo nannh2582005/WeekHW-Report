@@ -1,111 +1,222 @@
-\section{Đếm phần tử không âm trong đoạn [Cơ bản]}
+\section{Thống kê hệ số đa thức [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{polynomials.csv} chứa nhiều dòng:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng có dạng:
+        \texttt{id,degree,a0,a1,...,an}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item \texttt{degree < 0} $\rightarrow$ invalid
+            \item Thiếu hệ số $\rightarrow$ gán bằng 0
+            \item \texttt{degree = 0} $\rightarrow$ chỉ có 1 hệ số
+            \item Nếu tất cả hệ số = 0 $\rightarrow$ \texttt{min\_abs = 0}
+        \end{itemize}
+
+        \item \textbf{Module 1 (Struct dữ liệu):}
+\begin{lstlisting}
+struct Poly {
+    string id;
+    int deg;
+    vector<double> a;
+};
+\end{lstlisting}
+
+        \item \textbf{Module 2 (Đọc file CSV):}
+        \begin{itemize}
+            \item Hàm \texttt{readPolysCSV(...)}
+            \item Chỉ lưu đa thức hợp lệ
+        \end{itemize}
+
+        \item \textbf{Module 3 (Thống kê hệ số):}
+        \begin{itemize}
+            \item Với mỗi hệ số:
+\begin{lstlisting}
+abs_val = fabs(a[i]);
+\end{lstlisting}
+            \item Cập nhật:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item \texttt{max\_abs}
+                \item \texttt{min\_abs}
+                \item \texttt{zero\_count}
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 4 (Ghi file):}
+        \begin{itemize}
+            \item Ghi ra \texttt{stats.csv}
+            \item Định dạng:
+            \texttt{id,degree,max\_abs,min\_abs,zero\_count}
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+stats.csv
+id,degree,max_abs,min_abs,zero_count
+...
+\end{lstlisting}
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <iomanip>
+#include <cmath>
 
-    using namespace std;
+using namespace std;
 
-    bool countNonNegative(const vector<int>& pre_b, int l, int r, int& ans) {
-        if (l < 0 || r >= pre_b.size() || l > r) return false;
-        ans = pre_b[r] - (l > 0 ? pre_b[l - 1] : 0);
-        return true;
-    }
+struct Poly {
+    string id;
+    int deg;
+    vector<double> a;
+};
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi mo file!\n"; return 1; }
+bool readPolysCSV(const string& path,
+                  vector<Poly>& arr) {
+    ifstream fin(path);
+    if (!fin) return false;
 
-        int n; fin_arr >> n;
-        vector<int> pre_b(n);
-        for (int i = 0; i < n; ++i) {
-            long long val; fin_arr >> val;
-            int b = (val >= 0 ? 1 : 0);
-            pre_b[i] = b + (i > 0 ? pre_b[i - 1] : 0);
+    string line;
+
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        vector<string> token;
+        string x;
+
+        while (getline(ss, x, ',')) {
+            token.push_back(x);
         }
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            int ans;
-            if (countNonNegative(pre_b, l, r, ans)) fout << ans << "\n";
-            else fout << "INVALID\n";
+        if (token.size() < 2) continue;
+
+        Poly p;
+        p.id = token[0];
+        p.deg = atoi(token[1].c_str());
+
+        if (p.deg < 0) continue;
+
+        p.a.assign(p.deg + 1, 0);
+
+        for (int i = 0; i <= p.deg; ++i) {
+            int pos = i + 2;
+
+            if (pos < (int)token.size())
+                p.a[i] = atof(token[pos].c_str());
+            else
+                p.a[i] = 0;
         }
-        return 0;
+
+        arr.push_back(p);
     }
+
+    return true;
+}
+
+int main() {
+    vector<Poly> arr;
+
+    if (!readPolysCSV("polynomials.csv", arr)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    ofstream fout("stats.csv");
+
+    if (!fout) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    fout << "id,degree,max_abs,min_abs,zero_count\n";
+    fout << fixed << setprecision(6);
+
+    for (size_t i = 0; i < arr.size(); ++i) {
+        double max_abs = fabs(arr[i].a[0]);
+        double min_abs = fabs(arr[i].a[0]);
+        int zero_count = 0;
+
+        for (int j = 0; j <= arr[i].deg; ++j) {
+            double val = fabs(arr[i].a[j]);
+
+            if (val > max_abs)
+                max_abs = val;
+
+            if (val < min_abs)
+                min_abs = val;
+
+            if (arr[i].a[j] == 0)
+                zero_count++;
+        }
+
+        fout << arr[i].id << ","
+             << arr[i].deg << ","
+             << max_abs << ","
+             << min_abs << ","
+             << zero_count << "\n";
+    }
+
+    cout << "Done";
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+P1,2,1,-5,3
+P2,1,0,4
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (stats.csv):}
+\begin{lstlisting}
+id,degree,max_abs,min_abs,zero_count
+P1,2,5.000000,1.000000,0
+P2,1,4.000000,0.000000,1
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Bậc 0)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+A,0,-7
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output (stats.csv):}
+\begin{lstlisting}
+id,degree,max_abs,min_abs,zero_count
+A,0,7.000000,7.000000,0
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Tất cả = 0)}
+
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+Z,3,0,0,0,0
+\end{lstlisting}
+
+\textbf{Expected Output (stats.csv):}
+\begin{lstlisting}
+id,degree,max_abs,min_abs,zero_count
+Z,3,0.000000,0.000000,4
+\end{lstlisting}

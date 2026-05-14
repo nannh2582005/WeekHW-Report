@@ -1,121 +1,250 @@
-\section{Tổng đoạn lớn nhất (Prefix) [Trung bình]}
+\section{Tìm nghiệm nguyên của đa thức [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{polynomials.csv} chứa nhiều dòng:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng có dạng:
+        \texttt{id,degree,a0,a1,...,an}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item \texttt{degree < 0} $\rightarrow$ invalid
+            \item Thiếu hệ số $\rightarrow$ gán bằng 0
+            \item Chỉ xét đa thức có hệ số nguyên
+            \item Tìm nghiệm nguyên trong đoạn \texttt{[-50,50]}
+            \item Không có nghiệm $\rightarrow$ ghi \texttt{id,NONE}
+            \item Đa thức hằng khác 0 $\rightarrow$ không có nghiệm
+            \item Đa thức 0 tuyệt đối $\rightarrow$ mọi giá trị đều là nghiệm, vẫn duyệt \texttt{[-50,50]}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Struct dữ liệu):}
+\begin{lstlisting}
+struct Poly {
+    string id;
+    int deg;
+    vector<long long> a;
+};
+\end{lstlisting}
+
+        \item \textbf{Module 2 (Đọc file CSV):}
+        \begin{itemize}
+            \item Chỉ lưu đa thức hợp lệ
+            \item Chuyển hệ số về kiểu nguyên
+        \end{itemize}
+
+        \item \textbf{Module 3 (Tính P(x)):}
+        \begin{itemize}
+            \item Dùng Horner
+        \end{itemize}
+
+\begin{lstlisting}
+res = a[n];
+for i = n-1 downto 0:
+    res = res*x + a[i];
+\end{lstlisting}
+
+        \item \textbf{Module 4 (Tìm nghiệm):}
+        \begin{itemize}
+            \item Duyệt mọi \texttt{x} từ -50 đến 50
+            \item Nếu \texttt{P(x)=0} thì ghi nghiệm
+        \end{itemize}
+
+        \item \textbf{Module 5 (Ghi file):}
+        \begin{itemize}
+            \item File \texttt{roots.csv}
+            \item Mỗi nghiệm một dòng:
+            \texttt{id,root}
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+roots.csv
+id,root
+...
+\end{lstlisting}
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <cmath>
 
-    using namespace std;
+using namespace std;
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+struct Poly {
+    string id;
+    int deg;
+    vector<long long> a;
+};
 
-        int n; fin >> n;
-        if (n == 0) return 0;
-        
-        vector<long long> pre(n);
-        long long val; fin >> val;
-        pre[0] = val;
-        for (int i = 1; i < n; ++i) {
-            fin >> val;
-            pre[i] = pre[i - 1] + val;
+bool isIntegerValue(double x) {
+    return fabs(x - round(x)) < 1e-9;
+}
+
+bool readPolysCSV(const string& path,
+                  vector<Poly>& arr) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    string line;
+
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        vector<string> token;
+        string s;
+
+        while (getline(ss, s, ',')) {
+            token.push_back(s);
         }
 
-        long long max_sum = pre[0];
-        int bestL = 0, bestR = 0;
-        
-        long long min_pre = 0;
-        int min_pre_idx = -1;
+        if (token.size() < 2) continue;
 
-        for (int r = 0; r < n; ++r) {
-            long long current_sum = pre[r] - min_pre;
-            if (current_sum > max_sum) {
-                max_sum = current_sum;
-                bestL = min_pre_idx + 1;
-                bestR = r;
+        string id = token[0];
+        int deg = atoi(token[1].c_str());
+
+        if (deg < 0) continue;
+
+        vector<long long> coef(deg + 1, 0);
+        bool ok = true;
+
+        for (int i = 0; i <= deg; ++i) {
+            int pos = i + 2;
+
+            double val = 0;
+
+            if (pos < (int)token.size())
+                val = atof(token[pos].c_str());
+
+            if (!isIntegerValue(val)) {
+                ok = false;
+                break;
             }
-            if (pre[r] < min_pre) {
-                min_pre = pre[r];
-                min_pre_idx = r;
-            }
+
+            coef[i] = (long long)llround(val);
         }
 
-        fout << "max_sum=" << max_sum << " l=" << bestL << " r=" << bestR << "\n";
-        return 0;
+        if (!ok) continue;
+
+        Poly p;
+        p.id = id;
+        p.deg = deg;
+        p.a = coef;
+
+        arr.push_back(p);
     }
+
+    return true;
+}
+
+long long evalHorner(const vector<long long>& a,
+                     long long x) {
+    int n = a.size() - 1;
+
+    long long res = a[n];
+
+    for (int i = n - 1; i >= 0; --i)
+        res = res * x + a[i];
+
+    return res;
+}
+
+int main() {
+    vector<Poly> arr;
+
+    if (!readPolysCSV("polynomials.csv", arr)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    ofstream fout("roots.csv");
+
+    if (!fout) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    fout << "id,root\n";
+
+    for (size_t i = 0; i < arr.size(); ++i) {
+        bool found = false;
+
+        for (int x = -50; x <= 50; ++x) {
+            if (evalHorner(arr[i].a, x) == 0) {
+                fout << arr[i].id
+                     << "," << x << "\n";
+                found = true;
+            }
+        }
+
+        if (!found) {
+            fout << arr[i].id
+                 << ",NONE\n";
+        }
+    }
+
+    cout << "Done";
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+P1,2,-1,0,1
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (roots.csv):}
+\begin{lstlisting}
+id,root
+P1,-1
+P1,1
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Không có nghiệm)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+A,2,1,0,1
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output (roots.csv):}
+\begin{lstlisting}
+id,root
+A,NONE
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Đa thức hằng 0)}
+
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+Z,0,0
+\end{lstlisting}
+
+\textbf{Expected Output (roots.csv):}
+\begin{lstlisting}
+id,root
+Z,-50
+Z,-49
+...
+Z,50
+\end{lstlisting}

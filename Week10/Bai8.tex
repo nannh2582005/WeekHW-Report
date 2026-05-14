@@ -1,130 +1,358 @@
-\section{Prefix product modulo M [Trung bình]}
+\section{Sort + search tổng hợp [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{records.csv} chứa:
+
+\begin{lstlisting}
+id,score
+\end{lstlisting}
+
+    Ví dụ:
+
+\begin{lstlisting}
+A,9.5
+B,7.0
+C,9.5
+\end{lstlisting}
+
+    File \texttt{queries.txt} chứa:
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng là một \texttt{id} cần tra cứu
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item File records rỗng
+            \[
+                \Rightarrow \text{mọi query đều NOT\_FOUND}
+            \]
+
+            \item Query không tồn tại
+            \[
+                \Rightarrow \texttt{NOT\_FOUND}
+            \]
+
+            \item Các record có cùng score
+            \[
+                \Rightarrow \text{giữ nguyên thứ tự ban đầu}
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file records):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readRecords()}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc query):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readQueries()}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Sort records):}
+
+        \begin{itemize}
+            \item Hàm \texttt{sortRecords()}
+            \item Dùng:
+\begin{lstlisting}
+stable_sort()
+\end{lstlisting}
+
+            \item Sort theo score giảm dần
+        \end{itemize}
+
+        \item \textbf{Module 4 (Search):}
+
+        \begin{itemize}
+            \item Hàm \texttt{findRecord()}
+            \item Tìm:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item rank (1-based)
+                \item id
+                \item score
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 5 (Ghi file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{writeOutput()}
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+    File \texttt{output.txt}
+
+\begin{lstlisting}
+rank,id,score
+NOT_FOUND
+...
+\end{lstlisting}
+
+    Dùng:
+\begin{lstlisting}
+setprecision(6)
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
 
-    long long power(long long base, long long exp, long long mod) {
-        long long res = 1;
-        base %= mod;
-        while (exp > 0) {
-            if (exp % 2 == 1) res = (res * base) % mod;
-            base = (base * base) % mod;
-            exp /= 2;
-        }
-        return res;
+using namespace std;
+
+struct Record {
+
+    string id;
+
+    double score;
+};
+
+bool readRecords(
+    const string& path,
+    vector<Record>& records
+) {
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string line;
+
+    while (getline(fin, line)) {
+
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+
+        string id, scoreStr;
+
+        getline(ss, id, ',');
+        getline(ss, scoreStr);
+
+        Record r;
+
+        r.id = id;
+
+        r.score = stod(scoreStr);
+
+        records.push_back(r);
     }
 
-    long long modInverse(long long n, long long M) {
-        return power(n, M - 2, M);
+    return true;
+}
+
+bool readQueries(
+    const string& path,
+    vector<string>& queries
+) {
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string id;
+
+    while (getline(fin, id)) {
+
+        if (!id.empty()) {
+            queries.push_back(id);
+        }
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    return true;
+}
 
-        int n; long long M; 
-        fin_arr >> n >> M;
-        vector<long long> pre(n + 1, 1);
-        vector<int> zeros(n + 1, 0);
+void sortRecords(
+    vector<Record>& records
+) {
+    stable_sort(
+        records.begin(),
+        records.end(),
 
-        for (int i = 1; i <= n; ++i) {
-            long long val; fin_arr >> val;
-            zeros[i] = zeros[i - 1] + (val == 0 ? 1 : 0);
-            val = (val == 0 ? 1 : val % M); // Giữ pre khác 0 để tránh chia 0
-            pre[i] = (pre[i - 1] * val) % M;
+        [](const Record& a,
+           const Record& b) {
+
+            return a.score > b.score;
         }
+    );
+}
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) { fout << "INVALID\n"; continue; }
-            
-            int zero_count = zeros[r + 1] - zeros[l];
-            if (zero_count > 0) {
-                fout << "INVALID\n";
-            } else {
-                long long ans = (pre[r + 1] * modInverse(pre[l], M)) % M;
-                fout << ans << "\n";
-            }
+int findRecord(
+    const vector<Record>& records,
+    const string& id
+) {
+    for (size_t i = 0; i < records.size(); ++i) {
+
+        if (records[i].id == id) {
+            return i;
         }
-        return 0;
     }
+
+    return -1;
+}
+
+bool writeOutput(
+    const string& path,
+    const vector<Record>& records,
+    const vector<string>& queries
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed << setprecision(6);
+
+    for (size_t i = 0; i < queries.size(); ++i) {
+
+        int pos =
+            findRecord(records, queries[i]);
+
+        if (pos == -1) {
+
+            fout << "NOT_FOUND\n";
+        }
+        else {
+
+            fout << pos + 1 << ","
+                 << records[pos].id << ","
+                 << records[pos].score
+                 << "\n";
+        }
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<Record> records;
+
+    if (!readRecords(
+        "records.csv",
+        records
+    )) {
+        cerr << "Loi mo file records!\n";
+        return 1;
+    }
+
+    vector<string> queries;
+
+    if (!readQueries(
+        "queries.txt",
+        queries
+    )) {
+        cerr << "Loi mo file queries!\n";
+        return 1;
+    }
+
+    sortRecords(records);
+
+    if (!writeOutput(
+        "output.txt",
+        records,
+        queries
+    )) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (records.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+A,9.5
+B,7.0
+C,9.5
+D,6.0
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Input (queries.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+C
+B
+D
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (output.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+2,C,9.500000
+3,B,7.000000
+4,D,6.000000
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 2 (Không tìm thấy)}
+
+\textbf{Input (records.csv):}
+
+\begin{lstlisting}
+A,10
+B,20
+\end{lstlisting}
+
+\textbf{Input (queries.txt):}
+
+\begin{lstlisting}
+C
+A
+\end{lstlisting}
+
+\textbf{Expected Output (output.txt):}
+
+\begin{lstlisting}
+NOT_FOUND
+2,A,10.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (File records rỗng)}
+
+\textbf{Input (records.csv):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Input (queries.txt):}
+
+\begin{lstlisting}
+A
+B
+\end{lstlisting}
+
+\textbf{Expected Output (output.txt):}
+
+\begin{lstlisting}
+NOT_FOUND
+NOT_FOUND
+\end{lstlisting}

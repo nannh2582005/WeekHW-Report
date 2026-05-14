@@ -1,110 +1,219 @@
-\section{Tổng đoạn trung bình [Trung bình]}
+\section{Cộng hai đa thức [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+    File \texttt{poly\_pairs.csv} chứa nhiều dòng:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng gồm 2 đa thức:
+        \texttt{id1,deg1,a0..an,id2,deg2,b0..bm}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item Hai đa thức đều bậc 0
+            \item Một đa thức rỗng (deg < 0 hoặc thiếu dữ liệu)
+            \item Thiếu hệ số $\rightarrow$ gán bằng 0
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Struct dữ liệu):}
+\begin{lstlisting}
+struct Poly {
+    string id;
+    int deg;
+    vector<double> a;
+};
+\end{lstlisting}
+
+        \item \textbf{Module 2 (Đọc từng cặp đa thức):}
+        \begin{itemize}
+            \item Tách dữ liệu CSV
+            \item Đọc đa thức thứ nhất
+            \item Đọc đa thức thứ hai
+        \end{itemize}
+
+        \item \textbf{Module 3 (Cộng đa thức):}
+        \begin{itemize}
+            \item Hàm:
+            \texttt{Poly addPoly(Poly p, Poly q)}
+            \item Bậc mới:
+\begin{lstlisting}
+max(p.deg, q.deg)
+\end{lstlisting}
+            \item Cộng hệ số cùng bậc
+            \item Phần dư giữ nguyên
+        \end{itemize}
+
+        \item \textbf{Module 4 (Ghi file):}
+        \begin{itemize}
+            \item Ghi ra \texttt{sum.csv}
+            \item Định dạng:
+            \texttt{id,degree\_sum,c0..cm}
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+sum.csv
+id,degree_sum,c0,c1,...
+\end{lstlisting}
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <iomanip>
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <iomanip>
+#include <algorithm>
 
-    using namespace std;
+using namespace std;
 
-    double rangeAverage(const vector<long long>& pre, int l, int r) {
-        long long sum = pre[r] - (l > 0 ? pre[l - 1] : 0);
-        return (double)sum / (r - l + 1);
+struct Poly {
+    string id;
+    int deg;
+    vector<double> a;
+};
+
+Poly addPoly(Poly p, Poly q) {
+    Poly r;
+    r.id = p.id + "_" + q.id;
+    r.deg = max(p.deg, q.deg);
+
+    r.a.assign(r.deg + 1, 0);
+
+    for (int i = 0; i <= r.deg; ++i) {
+        if (i <= p.deg)
+            r.a[i] += p.a[i];
+
+        if (i <= q.deg)
+            r.a[i] += q.a[i];
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    return r;
+}
 
-        int n; fin_arr >> n;
-        vector<long long> pre(n);
-        for (int i = 0; i < n; ++i) {
-            long long val; fin_arr >> val;
-            pre[i] = val + (i > 0 ? pre[i - 1] : 0);
-        }
+bool readOnePoly(vector<string>& token,
+                 int& pos,
+                 Poly& p) {
+    if (pos + 1 >= (int)token.size())
+        return false;
 
-        fout << fixed << setprecision(6);
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) fout << "INVALID\n";
-            else fout << rangeAverage(pre, l, r) << "\n";
-        }
-        return 0;
+    p.id = token[pos++];
+    p.deg = atoi(token[pos++].c_str());
+
+    if (p.deg < 0) return false;
+
+    p.a.assign(p.deg + 1, 0);
+
+    for (int i = 0; i <= p.deg; ++i) {
+        if (pos < (int)token.size())
+            p.a[i] = atof(token[pos++].c_str());
+        else
+            p.a[i] = 0;
     }
+
+    return true;
+}
+
+int main() {
+    ifstream fin("poly_pairs.csv");
+
+    if (!fin) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    ofstream fout("sum.csv");
+
+    if (!fout) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    fout << fixed << setprecision(6);
+
+    string line;
+
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        vector<string> token;
+        string x;
+
+        while (getline(ss, x, ',')) {
+            token.push_back(x);
+        }
+
+        int pos = 0;
+        Poly p, q;
+
+        if (!readOnePoly(token, pos, p))
+            continue;
+
+        if (!readOnePoly(token, pos, q))
+            continue;
+
+        Poly r = addPoly(p, q);
+
+        fout << r.id << ","
+             << r.deg;
+
+        for (int i = 0; i <= r.deg; ++i)
+            fout << "," << r.a[i];
+
+        fout << "\n";
+    }
+
+    cout << "Done";
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (poly\_pairs.csv):}
+\begin{lstlisting}
+P1,2,1,2,3,P2,1,4,5
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Expected Output (sum.csv):}
+\begin{lstlisting}
+P1_P2,2,5.000000,7.000000,3.000000
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\vspace{0.5cm}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\textbf{Test Case 2 (Hai đa thức bậc 0)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Input (poly\_pairs.csv):}
+\begin{lstlisting}
+A,0,7,B,0,5
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Expected Output (sum.csv):}
+\begin{lstlisting}
+A_B,0,12.000000
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 3 (Thiếu hệ số)}
+
+\textbf{Input (poly\_pairs.csv):}
+\begin{lstlisting}
+X,3,1,2,Y,1,4
+\end{lstlisting}
+
+\textbf{Expected Output (sum.csv):}
+\begin{lstlisting}
+X_Y,3,5.000000,2.000000,0.000000,0.000000
+\end{lstlisting}

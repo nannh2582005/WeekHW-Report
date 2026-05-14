@@ -1,121 +1,336 @@
-\section{Tổng đoạn lớn nhất (Prefix) [Trung bình]}
+\section{Phát hiện từ lặp liên tiếp [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
-    \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
-    \end{itemize}
+
+    File \texttt{text.txt} chứa nhiều dòng văn bản ASCII.
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item Dòng rỗng $\rightarrow$ bỏ qua
+            \item Dòng chỉ có 1 token $\rightarrow$ không có lặp
+            \item Không có từ lặp liên tiếp
+            $\rightarrow$
+            file output rỗng
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readLines(path, vector<string>&)
+\end{lstlisting}
+
+            \item Kiểm tra mở file
+        \end{itemize}
+
+        \item \textbf{Module 2 (Normalize chuỗi):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+normalizeLine(const string& s)
+\end{lstlisting}
+
+            \item Chuyển lowercase
+            \item Ký tự không phải chữ/số
+            $\rightarrow$
+            space
+            \item Gom nhiều space thành 1
+        \end{itemize}
+
+        \item \textbf{Module 3 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+vector<string> tokenize(...)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 4 (Phát hiện lặp liên tiếp):}
+
+        \begin{itemize}
+            \item Duyệt token theo từng dòng
+            \item Nếu:
+\begin{lstlisting}
+tokens[i] == tokens[i-1]
+\end{lstlisting}
+
+            $\rightarrow$
+            tăng count
+
+            \item Nếu count $\ge 2$
+            $\rightarrow$
+            ghi kết quả
+        \end{itemize}
+
+        \item \textbf{Module 5 (Ghi output):}
+
+        \begin{itemize}
+            \item File:
+\begin{lstlisting}
+repeats.txt
+\end{lstlisting}
+
+            \item Format:
+\begin{lstlisting}
+line=<i> word=<w> count=<k>
+\end{lstlisting}
+
+            \item \texttt{i} là số dòng bắt đầu từ 1
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+\begin{lstlisting}
+line=<i> word=<w> count=<k>
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <cctype>
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+using namespace std;
 
-        int n; fin >> n;
-        if (n == 0) return 0;
-        
-        vector<long long> pre(n);
-        long long val; fin >> val;
-        pre[0] = val;
-        for (int i = 1; i < n; ++i) {
-            fin >> val;
-            pre[i] = pre[i - 1] + val;
-        }
+struct RepeatInfo {
+    int line;
+    string word;
+    int count;
+};
 
-        long long max_sum = pre[0];
-        int bestL = 0, bestR = 0;
-        
-        long long min_pre = 0;
-        int min_pre_idx = -1;
+bool readLines(const string& path,
+               vector<string>& lines) {
 
-        for (int r = 0; r < n; ++r) {
-            long long current_sum = pre[r] - min_pre;
-            if (current_sum > max_sum) {
-                max_sum = current_sum;
-                bestL = min_pre_idx + 1;
-                bestR = r;
-            }
-            if (pre[r] < min_pre) {
-                min_pre = pre[r];
-                min_pre_idx = r;
-            }
-        }
+    ifstream fin(path);
 
-        fout << "max_sum=" << max_sum << " l=" << bestL << " r=" << bestR << "\n";
-        return 0;
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        lines.push_back(s);
     }
+
+    return true;
+}
+
+string normalizeLine(const string& s) {
+
+    string result;
+
+    bool lastSpace = true;
+
+    for (char c : s) {
+
+        if (isalnum((unsigned char)c)) {
+
+            result +=
+                (char)tolower((unsigned char)c);
+
+            lastSpace = false;
+        }
+        else {
+
+            if (!lastSpace) {
+
+                result += ' ';
+                lastSpace = true;
+            }
+        }
+    }
+
+    if (!result.empty() &&
+        result.back() == ' ') {
+
+        result.pop_back();
+    }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& normalized) {
+
+    vector<string> tokens;
+
+    stringstream ss(normalized);
+
+    string token;
+
+    while (ss >> token) {
+
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+bool writeRepeats(
+    const string& path,
+    const vector<RepeatInfo>& repeats) {
+
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    for (const RepeatInfo& r : repeats) {
+
+        fout << "line="
+             << r.line
+             << " word="
+             << r.word
+             << " count="
+             << r.count
+             << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<string> lines;
+
+    if (!readLines("text.txt", lines)) {
+
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    vector<RepeatInfo> repeats;
+
+    for (size_t lineIdx = 0;
+         lineIdx < lines.size();
+         ++lineIdx) {
+
+        string normalized =
+            normalizeLine(lines[lineIdx]);
+
+        vector<string> tokens =
+            tokenize(normalized);
+
+        if (tokens.empty()) continue;
+
+        string current = tokens[0];
+        int count = 1;
+
+        for (size_t i = 1;
+             i < tokens.size();
+             ++i) {
+
+            if (tokens[i] == current) {
+
+                count++;
+            }
+            else {
+
+                if (count >= 2) {
+
+                    repeats.push_back({
+                        (int)lineIdx + 1,
+                        current,
+                        count
+                    });
+                }
+
+                current = tokens[i];
+                count = 1;
+            }
+        }
+
+        if (count >= 2) {
+
+            repeats.push_back({
+                (int)lineIdx + 1,
+                current,
+                count
+            });
+        }
+    }
+
+    if (!writeRepeats("repeats.txt",
+                      repeats)) {
+
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (text.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+hello hello world
+test test test data
+a b c
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output (repeats.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+line=1 word=hello count=2
+line=2 word=test count=3
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Test Case 2 (Không có lặp)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (text.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+one two three
+apple banana orange
+\end{lstlisting}
+
+\textbf{Expected Output (repeats.txt):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- dòng rỗng)}
+
+\textbf{Input (text.txt):}
+
+\begin{lstlisting}
+
+hello hello
+
+wow wow wow
+\end{lstlisting}
+
+\textbf{Expected Output (repeats.txt):}
+
+\begin{lstlisting}
+line=2 word=hello count=2
+line=4 word=wow count=3
+\end{lstlisting}

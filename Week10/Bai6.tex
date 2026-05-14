@@ -1,114 +1,442 @@
-\section{Phần tử xuất hiện nhiều nhất trong đoạn [Trung bình]}
+\section{Dashboard tổng hợp 1 file [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{data.csv} chứa:
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Dòng đầu là header:
+\begin{lstlisting}
+id,value1,value2,...,valueN
+\end{lstlisting}
+
+        \item Các dòng tiếp theo:
+\begin{lstlisting}
+id,number,number,...
+\end{lstlisting}
+
+        \item Missing có thể là:
+        \begin{itemize}
+            \item ô rỗng
+            \item \texttt{NA}
+        \end{itemize}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item Một cột toàn missing
+            \[
+                \Rightarrow
+                min=max=mean=std=0
+            \]
+
+            \item File rỗng
+            \[
+                \Rightarrow \text{không có dữ liệu}
+            \]
+
+            \item Thiếu cột ở một dòng
+            \[
+                \Rightarrow \text{coi là missing}
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readCSV()}
+            \item Đọc:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item header
+                \item dữ liệu từng cột
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 2 (Parse dữ liệu):}
+
+        \begin{itemize}
+            \item Hàm \texttt{parseRow()}
+            \item Xử lý missing
+        \end{itemize}
+
+        \item \textbf{Module 3 (Tính thống kê):}
+
+        \begin{itemize}
+            \item Hàm \texttt{computeStats()}
+            \item Với mỗi cột tính:
+            \begin{itemize}
+                \item count
+                \item missing
+                \item min
+                \item max
+                \item mean
+                \item std
+            \end{itemize}
+
+            \item Dùng \texttt{long double}
+            để giảm sai số
+        \end{itemize}
+
+        \item \textbf{Module 4 (Ghi dashboard):}
+
+        \begin{itemize}
+            \item Hàm \texttt{writeDashboard()}
+            \item Mỗi hàng ứng với một cột dữ liệu
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+    File \texttt{dashboard.csv}
+
+\begin{lstlisting}
+column,count,missing,min,max,mean,std
+...
+\end{lstlisting}
+
+    Dùng:
+\begin{lstlisting}
+setprecision(6)
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <iomanip>
+#include <cmath>
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+using namespace std;
 
-        int n; fin_arr >> n;
-        vector<vector<int>> pre(101, vector<int>(n + 1, 0));
-        
-        for (int i = 1; i <= n; ++i) {
-            int val; fin_arr >> val;
-            for (int v = 0; v <= 100; ++v) pre[v][i] = pre[v][i - 1];
-            if (val >= 0 && val <= 100) pre[val][i]++;
+struct ColumnStats {
+
+    string name;
+
+    int count;
+    int missing;
+
+    double minVal;
+    double maxVal;
+
+    double mean;
+    double stdev;
+};
+
+vector<string> splitCSV(
+    const string& line
+) {
+    vector<string> parts;
+
+    stringstream ss(line);
+
+    string token;
+
+    while (getline(ss, token, ',')) {
+        parts.push_back(token);
+    }
+
+    return parts;
+}
+
+bool readCSV(
+    const string& path,
+    vector<string>& headers,
+    vector<vector<string>>& rows
+) {
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string line;
+
+    if (!getline(fin, line)) {
+        return true;
+    }
+
+    headers = splitCSV(line);
+
+    while (getline(fin, line)) {
+
+        rows.push_back(
+            splitCSV(line)
+        );
+    }
+
+    return true;
+}
+
+void parseRow(
+    const vector<string>& row,
+    vector<vector<double>>& cols,
+    vector<vector<bool>>& missing
+) {
+    int totalCols = cols.size();
+
+    for (int i = 0; i < totalCols; ++i) {
+
+        int idx = i + 1;
+
+        if (idx >= (int)row.size()
+            || row[idx].empty()
+            || row[idx] == "NA") {
+
+            cols[i].push_back(0);
+
+            missing[i].push_back(true);
         }
+        else {
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) { fout << "INVALID\n"; continue; }
-            
-            int max_freq = -1, best_val = -1;
-            for (int v = 0; v <= 100; ++v) {
-                int freq = pre[v][r + 1] - pre[v][l];
-                if (freq > max_freq) {
-                    max_freq = freq;
-                    best_val = v;
+            cols[i].push_back(
+                stod(row[idx])
+            );
+
+            missing[i].push_back(false);
+        }
+    }
+}
+
+ColumnStats computeStats(
+    const string& name,
+    const vector<double>& values,
+    const vector<bool>& missing
+) {
+    ColumnStats s;
+
+    s.name = name;
+
+    s.count = 0;
+    s.missing = 0;
+
+    long double sum = 0;
+
+    bool first = true;
+
+    for (size_t i = 0; i < values.size(); ++i) {
+
+        if (missing[i]) {
+
+            ++s.missing;
+        }
+        else {
+
+            ++s.count;
+
+            sum += values[i];
+
+            if (first) {
+
+                s.minVal = values[i];
+                s.maxVal = values[i];
+
+                first = false;
+            }
+            else {
+
+                if (values[i] < s.minVal) {
+                    s.minVal = values[i];
+                }
+
+                if (values[i] > s.maxVal) {
+                    s.maxVal = values[i];
                 }
             }
-            fout << best_val << "\n";
         }
-        return 0;
     }
+
+    if (s.count == 0) {
+
+        s.minVal = 0;
+        s.maxVal = 0;
+
+        s.mean = 0;
+        s.stdev = 0;
+
+        return s;
+    }
+
+    s.mean = sum / s.count;
+
+    long double variance = 0;
+
+    for (size_t i = 0; i < values.size(); ++i) {
+
+        if (!missing[i]) {
+
+            variance +=
+                (values[i] - s.mean)
+                *
+                (values[i] - s.mean);
+        }
+    }
+
+    variance /= s.count;
+
+    s.stdev = sqrt(variance);
+
+    return s;
+}
+
+bool writeDashboard(
+    const string& path,
+    const vector<ColumnStats>& stats
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed << setprecision(6);
+
+    fout << "column,count,missing,min,max,mean,std\n";
+
+    for (size_t i = 0; i < stats.size(); ++i) {
+
+        fout << stats[i].name << ","
+             << stats[i].count << ","
+             << stats[i].missing << ","
+             << stats[i].minVal << ","
+             << stats[i].maxVal << ","
+             << stats[i].mean << ","
+             << stats[i].stdev << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<string> headers;
+
+    vector<vector<string>> rows;
+
+    if (!readCSV(
+        "data.csv",
+        headers,
+        rows
+    )) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    if (headers.size() <= 1) {
+
+        cerr << "Khong co cot du lieu!\n";
+        return 1;
+    }
+
+    int numCols = headers.size() - 1;
+
+    vector<vector<double>> cols(numCols);
+
+    vector<vector<bool>> missing(numCols);
+
+    for (size_t i = 0; i < rows.size(); ++i) {
+
+        parseRow(
+            rows[i],
+            cols,
+            missing
+        );
+    }
+
+    vector<ColumnStats> stats;
+
+    for (int i = 0; i < numCols; ++i) {
+
+        stats.push_back(
+
+            computeStats(
+                headers[i + 1],
+                cols[i],
+                missing[i]
+            )
+        );
+    }
+
+    if (!writeDashboard(
+        "dashboard.csv",
+        stats
+    )) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (data.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+id,a,b
+A,10,20
+B,30,40
+C,50,60
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output (dashboard.csv):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+column,count,missing,min,max,mean,std
+a,3,0,10.000000,50.000000,30.000000,16.329932
+b,3,0,20.000000,60.000000,40.000000,16.329932
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Test Case 2 (Có missing)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (data.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+id,x,y
+A,10,
+B,NA,20
+C,30,40
+\end{lstlisting}
+
+\textbf{Expected Output (dashboard.csv):}
+
+\begin{lstlisting}
+column,count,missing,min,max,mean,std
+x,2,1,10.000000,30.000000,20.000000,10.000000
+y,2,1,20.000000,40.000000,30.000000,10.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Toàn missing)}
+
+\textbf{Input (data.csv):}
+
+\begin{lstlisting}
+id,a,b
+A,,
+B,NA,NA
+\end{lstlisting}
+
+\textbf{Expected Output (dashboard.csv):}
+
+\begin{lstlisting}
+column,count,missing,min,max,mean,std
+a,0,2,0.000000,0.000000,0.000000,0.000000
+b,0,2,0.000000,0.000000,0.000000,0.000000
+\end{lstlisting}

@@ -1,124 +1,374 @@
-\section{Xây dựng prefix sum [Cơ bản]}
+\section{Pipeline M0 hoàn chỉnh: CSV Cleaning [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{data.csv} chứa:
+    
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng gồm: \texttt{id,value}
+        \item Giá trị thiếu có thể là \texttt{NA} hoặc rỗng
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item Tất cả giá trị đều missing
+            \[
+                \Rightarrow \text{mean} = 0,\quad \text{std} = 0
+            \]
+            \[
+                \Rightarrow \text{mọi } z = 0
+            \]
+
+            \item \texttt{std = 0}
+            \[
+                \Rightarrow z = 0
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc CSV):}
+
+        \begin{itemize}
+            \item Hàm \texttt{parseCSV(path, ids, values, missing)}
+            \item Đọc từng dòng bằng \texttt{getline()}
+            \item Kiểm tra missing:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item \texttt{NA}
+                \item Chuỗi rỗng
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 2 (Tính thống kê):}
+
+        \begin{itemize}
+            \item Hàm \texttt{computeStats()}
+            \item Tính:
+            \begin{itemize}
+                \item count\_valid
+                \item count\_missing
+                \item mean
+                \item std
+            \end{itemize}
+            \item Bỏ qua các giá trị missing
+            \item Dùng \texttt{long double} để giảm sai số
+        \end{itemize}
+
+        \item \textbf{Module 3 (Impute + Z-score):}
+
+        \begin{itemize}
+            \item Hàm \texttt{imputeAndScore()}
+            \item Missing sẽ được thay bằng mean
+            \item Công thức:
+            \[
+                z = \frac{x - mean}{std}
+            \]
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+    File \texttt{report.csv}
+
+\begin{lstlisting}
+id,value_imputed,zscore
+\end{lstlisting}
+
+    File \texttt{summary.txt}
+
+\begin{lstlisting}
+count_valid=<n>
+count_missing=<n>
+mean=<f>
+std=<f>
+\end{lstlisting}
+
+(với \texttt{setprecision(6)})
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <iomanip>
+#include <cmath>
 
-    bool readArray(const string& path, vector<long long>& a) {
-        ifstream fin(path);
-        if (!fin) return false;
-        int n;
-        if (fin >> n) {
-            a.resize(n);
-            for (int i = 0; i < n; ++i) fin >> a[i];
+using namespace std;
+
+bool parseCSV(
+    const string& path,
+    vector<string>& ids,
+    vector<double>& values,
+    vector<bool>& missing
+) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    string line;
+
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+
+        string id, valStr;
+
+        getline(ss, id, ',');
+        getline(ss, valStr);
+
+        ids.push_back(id);
+
+        if (valStr.empty() || valStr == "NA") {
+            values.push_back(0);
+            missing.push_back(true);
+        } else {
+            values.push_back(stod(valStr));
+            missing.push_back(false);
         }
-        return true;
     }
 
-    vector<long long> buildPrefix(const vector<long long>& a) {
-        if (a.empty()) return {};
-        vector<long long> pre(a.size());
-        pre[0] = a[0];
-        for (size_t i = 1; i < a.size(); ++i) pre[i] = pre[i - 1] + a[i];
-        return pre;
+    return true;
+}
+
+void computeStats(
+    const vector<double>& values,
+    const vector<bool>& missing,
+    int& countValid,
+    int& countMissing,
+    double& mean,
+    double& stdev
+) {
+    countValid = 0;
+    countMissing = 0;
+
+    long double sum = 0;
+
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (missing[i]) {
+            ++countMissing;
+        } else {
+            ++countValid;
+            sum += values[i];
+        }
     }
 
-    bool writePrefix(const string& path, const vector<long long>& pre) {
-        ofstream fout(path);
-        if (!fout) return false;
-        for (size_t i = 0; i < pre.size(); ++i) {
-            fout << i << ": " << pre[i] << "\n";
-        }
-        return true;
+    if (countValid == 0) {
+        mean = 0;
+        stdev = 0;
+        return;
     }
 
-    int main() {
-        vector<long long> a;
-        if (!readArray("input.txt", a)) {
-            cerr << "Loi mo file input!\n";
-            return 1;
+    mean = sum / countValid;
+
+    long double variance = 0;
+
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (!missing[i]) {
+            variance += (values[i] - mean) * (values[i] - mean);
         }
-        vector<long long> pre = buildPrefix(a);
-        if (!writePrefix("prefix.txt", pre)) {
-            cerr << "Loi mo file output!\n";
-            return 1;
-        }
-        return 0;
     }
+
+    variance /= countValid;
+
+    stdev = sqrt(variance);
+}
+
+void imputeAndScore(
+    const vector<string>& ids,
+    const vector<double>& values,
+    const vector<bool>& missing,
+    double mean,
+    double stdev
+) {
+    ofstream fout("report.csv");
+
+    fout << fixed << setprecision(6);
+
+    fout << "id,value_imputed,zscore\n";
+
+    for (size_t i = 0; i < ids.size(); ++i) {
+
+        double x = missing[i] ? mean : values[i];
+
+        double z = 0;
+
+        if (stdev != 0) {
+            z = (x - mean) / stdev;
+        }
+
+        fout << ids[i] << ","
+             << x << ","
+             << z << "\n";
+    }
+}
+
+bool writeSummary(
+    const string& path,
+    int countValid,
+    int countMissing,
+    double mean,
+    double stdev
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed << setprecision(6);
+
+    fout << "count_valid=" << countValid << "\n";
+    fout << "count_missing=" << countMissing << "\n";
+    fout << "mean=" << mean << "\n";
+    fout << "std=" << stdev << "\n";
+
+    return true;
+}
+
+int main() {
+
+    vector<string> ids;
+    vector<double> values;
+    vector<bool> missing;
+
+    if (!parseCSV("data.csv", ids, values, missing)) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    int countValid, countMissing;
+
+    double mean, stdev;
+
+    computeStats(
+        values,
+        missing,
+        countValid,
+        countMissing,
+        mean,
+        stdev
+    );
+
+    imputeAndScore(
+        ids,
+        values,
+        missing,
+        mean,
+        stdev
+    );
+
+    if (!writeSummary(
+        "summary.txt",
+        countValid,
+        countMissing,
+        mean,
+        stdev
+    )) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (data.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+A,10
+B,20
+C,NA
+D,30
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output (summary.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+count_valid=3
+count_missing=1
+mean=20.000000
+std=8.164966
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (report.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+id,value_imputed,zscore
+A,10.000000,-1.224745
+B,20.000000,0.000000
+C,20.000000,0.000000
+D,30.000000,1.224745
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 2 (Tất cả missing)}
+
+\textbf{Input (data.csv):}
+
+\begin{lstlisting}
+A,NA
+B,
+C,NA
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+
+\begin{lstlisting}
+count_valid=0
+count_missing=3
+mean=0.000000
+std=0.000000
+\end{lstlisting}
+
+\textbf{Expected Output (report.csv):}
+
+\begin{lstlisting}
+id,value_imputed,zscore
+A,0.000000,0.000000
+B,0.000000,0.000000
+C,0.000000,0.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (std = 0)}
+
+\textbf{Input (data.csv):}
+
+\begin{lstlisting}
+A,5
+B,5
+C,5
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+
+\begin{lstlisting}
+count_valid=3
+count_missing=0
+mean=5.000000
+std=0.000000
+\end{lstlisting}
+
+\textbf{Expected Output (report.csv):}
+
+\begin{lstlisting}
+id,value_imputed,zscore
+A,5.000000,0.000000
+B,5.000000,0.000000
+C,5.000000,0.000000
+\end{lstlisting}

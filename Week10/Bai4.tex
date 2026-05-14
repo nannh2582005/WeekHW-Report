@@ -1,110 +1,419 @@
-\section{Tổng đoạn trung bình [Trung bình]}
+\section{Multi-query prefix sum tổng hợp [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{input.txt} chứa:
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Số nguyên \(n\)
+        \item \(n\) phần tử của mảng
+        \item Số truy vấn \(q\)
+        \item Danh sách truy vấn:
+\begin{lstlisting}
+SUM l r
+AVG l r
+CNT l r v
+\end{lstlisting}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item \(l < 0\)
+            \item \(r \ge n\)
+            \item \(l > r\)
+
+            \[
+                \Rightarrow \texttt{INVALID}
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readInput()}
+            \item Đọc:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item mảng
+                \item danh sách truy vấn
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 2 (Xây prefix sum):}
+
+        \begin{itemize}
+            \item Hàm \texttt{buildPrefix()}
+            \item Prefix kiểu \texttt{long long}
+            \[
+                pre[i]=a[0]+a[1]+\cdots+a[i]
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 3 (SUM Query):}
+
+        \begin{itemize}
+            \item Hàm \texttt{handleSUM()}
+            \item Công thức:
+            \[
+                sum(l,r)=pre[r]-pre[l-1]
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 4 (AVG Query):}
+
+        \begin{itemize}
+            \item Hàm \texttt{handleAVG()}
+            \item Công thức:
+            \[
+                avg=\frac{sum(l,r)}{r-l+1}
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 5 (CNT Query):}
+
+        \begin{itemize}
+            \item Hàm \texttt{handleCNT()}
+            \item Với \(n \le 1000\):
+            \begin{itemize}
+                \item Duyệt brute force \(O(n)\)
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Module 6 (Ghi file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{writeOutput()}
+            \item Ghi kết quả từng truy vấn
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+    File \texttt{output.txt}
+
+\begin{lstlisting}
+<ket qua query 1>
+<ket qua query 2>
+...
+\end{lstlisting}
+
+    Nếu truy vấn không hợp lệ:
+\begin{lstlisting}
+INVALID
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <iomanip>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <sstream>
+#include <iomanip>
 
-    double rangeAverage(const vector<long long>& pre, int l, int r) {
-        long long sum = pre[r] - (l > 0 ? pre[l - 1] : 0);
-        return (double)sum / (r - l + 1);
+using namespace std;
+
+struct Query {
+    string type;
+    int l, r;
+    long long v;
+};
+
+bool readInput(
+    const string& path,
+    vector<long long>& a,
+    vector<Query>& queries
+) {
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    int n;
+
+    fin >> n;
+
+    a.resize(n);
+
+    for (int i = 0; i < n; ++i) {
+        fin >> a[i];
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    int q;
 
-        int n; fin_arr >> n;
-        vector<long long> pre(n);
-        for (int i = 0; i < n; ++i) {
-            long long val; fin_arr >> val;
-            pre[i] = val + (i > 0 ? pre[i - 1] : 0);
+    fin >> q;
+
+    for (int i = 0; i < q; ++i) {
+
+        Query qu;
+
+        fin >> qu.type;
+
+        if (qu.type == "SUM"
+            || qu.type == "AVG") {
+
+            fin >> qu.l >> qu.r;
+
+            qu.v = 0;
+        }
+        else if (qu.type == "CNT") {
+
+            fin >> qu.l >> qu.r >> qu.v;
         }
 
-        fout << fixed << setprecision(6);
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) fout << "INVALID\n";
-            else fout << rangeAverage(pre, l, r) << "\n";
-        }
-        return 0;
+        queries.push_back(qu);
     }
+
+    return true;
+}
+
+vector<long long> buildPrefix(
+    const vector<long long>& a
+) {
+    vector<long long> pre(a.size());
+
+    if (a.empty()) return pre;
+
+    pre[0] = a[0];
+
+    for (size_t i = 1; i < a.size(); ++i) {
+        pre[i] = pre[i - 1] + a[i];
+    }
+
+    return pre;
+}
+
+bool validRange(
+    int l,
+    int r,
+    int n
+) {
+    return !(l < 0 || r >= n || l > r);
+}
+
+string handleSUM(
+    const vector<long long>& pre,
+    int l,
+    int r
+) {
+    if (!validRange(l, r, pre.size())) {
+        return "INVALID";
+    }
+
+    long long sum = pre[r];
+
+    if (l > 0) {
+        sum -= pre[l - 1];
+    }
+
+    return to_string(sum);
+}
+
+string handleAVG(
+    const vector<long long>& pre,
+    int l,
+    int r
+) {
+    if (!validRange(l, r, pre.size())) {
+        return "INVALID";
+    }
+
+    long long sum = pre[r];
+
+    if (l > 0) {
+        sum -= pre[l - 1];
+    }
+
+    double avg =
+        (double)sum / (r - l + 1);
+
+    stringstream ss;
+
+    ss << fixed << setprecision(6)
+       << avg;
+
+    return ss.str();
+}
+
+string handleCNT(
+    const vector<long long>& a,
+    int l,
+    int r,
+    long long v
+) {
+    if (!validRange(l, r, a.size())) {
+        return "INVALID";
+    }
+
+    int cnt = 0;
+
+    for (int i = l; i <= r; ++i) {
+        if (a[i] == v) {
+            ++cnt;
+        }
+    }
+
+    return to_string(cnt);
+}
+
+bool writeOutput(
+    const string& path,
+    const vector<string>& results
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    for (size_t i = 0; i < results.size(); ++i) {
+        fout << results[i] << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<long long> a;
+
+    vector<Query> queries;
+
+    if (!readInput(
+        "input.txt",
+        a,
+        queries
+    )) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    vector<long long> pre =
+        buildPrefix(a);
+
+    vector<string> results;
+
+    for (size_t i = 0; i < queries.size(); ++i) {
+
+        Query q = queries[i];
+
+        if (q.type == "SUM") {
+
+            results.push_back(
+                handleSUM(
+                    pre,
+                    q.l,
+                    q.r
+                )
+            );
+        }
+        else if (q.type == "AVG") {
+
+            results.push_back(
+                handleAVG(
+                    pre,
+                    q.l,
+                    q.r
+                )
+            );
+        }
+        else if (q.type == "CNT") {
+
+            results.push_back(
+                handleCNT(
+                    a,
+                    q.l,
+                    q.r,
+                    q.v
+                )
+            );
+        }
+    }
+
+    if (!writeOutput(
+        "output.txt",
+        results
+    )) {
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (input.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+5
+1 2 3 2 5
+4
+SUM 1 3
+AVG 0 4
+CNT 0 4 2
+CNT 2 4 5
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output (output.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+7
+2.600000
+2
+1
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Test Case 2 (INVALID query)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (input.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+4
+1 2 3 4
+3
+SUM -1 2
+AVG 1 10
+CNT 3 1 4
+\end{lstlisting}
+
+\textbf{Expected Output (output.txt):}
+
+\begin{lstlisting}
+INVALID
+INVALID
+INVALID
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Mảng rỗng)}
+
+\textbf{Input (input.txt):}
+
+\begin{lstlisting}
+0
+
+2
+SUM 0 0
+CNT 0 0 1
+\end{lstlisting}
+
+\textbf{Expected Output (output.txt):}
+
+\begin{lstlisting}
+INVALID
+INVALID
+\end{lstlisting}

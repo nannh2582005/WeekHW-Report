@@ -1,130 +1,290 @@
-\section{Prefix product modulo M [Trung bình]}
+\section{Ma trận đơn vị phân số [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item File \texttt{config.txt} chứa số nguyên $n$
+        \item File \texttt{matrix.txt} chứa ma trận phân số $n \times n$
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item $n = 0 \rightarrow$ ma trận rỗng
+            \item $n = 1 \rightarrow$ kiểm tra trực tiếp phần tử duy nhất
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc config):}
+        \begin{itemize}
+            \item Hàm \texttt{readConfig(path, n)}
+            \item Kiểm tra mở file
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc ma trận phân số):}
+        \begin{itemize}
+            \item Hàm \texttt{readMatrix(path, matrix, n)}
+            \item Mỗi phần tử có dạng \texttt{a/b}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Chuẩn hoá phân số):}
+        \begin{itemize}
+            \item Rút gọn bằng gcd
+            \item Đưa mẫu về dương
+        \end{itemize}
+
+        \item \textbf{Module 4 (Tạo ma trận đơn vị):}
+        \begin{itemize}
+            \item Đường chéo chính = $1/1$
+            \item Ngoài đường chéo = $0/1$
+        \end{itemize}
+
+        \item \textbf{Module 5 (Nhân ma trận):}
+        \begin{itemize}
+            \item Tính $A \times I$
+            \item Tính $I \times A$
+        \end{itemize}
+
+        \item \textbf{Module 6 (So sánh ma trận):}
+        \begin{itemize}
+            \item So sánh từng ô sau khi chuẩn hoá phân số
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+is_identity_product=1
+\end{lstlisting}
+hoặc
+\begin{lstlisting}
+is_identity_product=0
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
 
-    long long power(long long base, long long exp, long long mod) {
-        long long res = 1;
-        base %= mod;
-        while (exp > 0) {
-            if (exp % 2 == 1) res = (res * base) % mod;
-            base = (base * base) % mod;
-            exp /= 2;
-        }
-        return res;
+using namespace std;
+
+struct Fraction {
+    long long num, den;
+};
+
+long long gcdll(long long a, long long b) {
+    if (b == 0) return a >= 0 ? a : -a;
+    return gcdll(b, a % b);
+}
+
+void normalize(Fraction& f) {
+    if (f.den < 0) {
+        f.num = -f.num;
+        f.den = -f.den;
     }
 
-    long long modInverse(long long n, long long M) {
-        return power(n, M - 2, M);
+    long long g = gcdll(f.num, f.den);
+    if (g != 0) {
+        f.num /= g;
+        f.den /= g;
+    }
+}
+
+Fraction addFraction(const Fraction& a, const Fraction& b) {
+    Fraction res;
+    res.num = a.num * b.den + b.num * a.den;
+    res.den = a.den * b.den;
+    normalize(res);
+    return res;
+}
+
+Fraction multiplyFraction(const Fraction& a, const Fraction& b) {
+    Fraction res;
+    res.num = a.num * b.num;
+    res.den = a.den * b.den;
+    normalize(res);
+    return res;
+}
+
+bool equalFraction(Fraction a, Fraction b) {
+    normalize(a);
+    normalize(b);
+    return a.num == b.num && a.den == b.den;
+}
+
+bool readConfig(const string& path, int& n) {
+    ifstream fin(path);
+    if (!fin) return false;
+    fin >> n;
+    return true;
+}
+
+bool readMatrix(const string& path,
+                vector<vector<Fraction>>& a,
+                int n) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    a.assign(n, vector<Fraction>(n));
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            char slash;
+            fin >> a[i][j].num >> slash >> a[i][j].den;
+            normalize(a[i][j]);
+        }
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    return true;
+}
 
-        int n; long long M; 
-        fin_arr >> n >> M;
-        vector<long long> pre(n + 1, 1);
-        vector<int> zeros(n + 1, 0);
+vector<vector<Fraction>> buildIdentity(int n) {
+    vector<vector<Fraction>> I(n, vector<Fraction>(n));
 
-        for (int i = 1; i <= n; ++i) {
-            long long val; fin_arr >> val;
-            zeros[i] = zeros[i - 1] + (val == 0 ? 1 : 0);
-            val = (val == 0 ? 1 : val % M); // Giữ pre khác 0 để tránh chia 0
-            pre[i] = (pre[i - 1] * val) % M;
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (i == j)
+                I[i][j] = {1, 1};
+            else
+                I[i][j] = {0, 1};
         }
+    }
 
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) { fout << "INVALID\n"; continue; }
-            
-            int zero_count = zeros[r + 1] - zeros[l];
-            if (zero_count > 0) {
-                fout << "INVALID\n";
-            } else {
-                long long ans = (pre[r + 1] * modInverse(pre[l], M)) % M;
-                fout << ans << "\n";
+    return I;
+}
+
+vector<vector<Fraction>> multiplyMatrix(
+    const vector<vector<Fraction>>& A,
+    const vector<vector<Fraction>>& B) {
+
+    int n = A.size();
+
+    vector<vector<Fraction>> C(
+        n,
+        vector<Fraction>(n, {0, 1})
+    );
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+
+            Fraction sum = {0, 1};
+
+            for (int k = 0; k < n; ++k) {
+                Fraction t = multiplyFraction(A[i][k], B[k][j]);
+                sum = addFraction(sum, t);
             }
+
+            C[i][j] = sum;
         }
-        return 0;
     }
+
+    return C;
+}
+
+bool equalMatrix(const vector<vector<Fraction>>& A,
+                 const vector<vector<Fraction>>& B) {
+
+    int n = A.size();
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+
+            if (!equalFraction(A[i][j], B[i][j]))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+int main() {
+
+    int n;
+
+    if (!readConfig("config.txt", n)) {
+        cerr << "Loi mo file config!\n";
+        return 1;
+    }
+
+    vector<vector<Fraction>> A;
+
+    if (!readMatrix("matrix.txt", A, n)) {
+        cerr << "Loi mo file matrix!\n";
+        return 1;
+    }
+
+    vector<vector<Fraction>> I = buildIdentity(n);
+
+    vector<vector<Fraction>> AI = multiplyMatrix(A, I);
+    vector<vector<Fraction>> IA = multiplyMatrix(I, A);
+
+    bool ok =
+        equalMatrix(A, AI) &&
+        equalMatrix(A, IA);
+
+    cout << "is_identity_product=" << (ok ? 1 : 0);
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Ma trận hợp lệ)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (config.txt):}
+\begin{lstlisting}
+2
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Input (matrix.txt):}
+\begin{lstlisting}
+1/2 2/3
+3/4 4/5
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output:}
+\begin{lstlisting}
+is_identity_product=1
+\end{lstlisting}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\vspace{0.5cm}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Test Case 2 (Case biên -- n=1)}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Input (config.txt):}
+\begin{lstlisting}
+1
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (matrix.txt):}
+\begin{lstlisting}
+5/7
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Expected Output:}
+\begin{lstlisting}
+is_identity_product=1
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- n=0)}
+
+\textbf{Input (config.txt):}
+\begin{lstlisting}
+0
+\end{lstlisting}
+
+\textbf{Input (matrix.txt):}
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Output:}
+\begin{lstlisting}
+is_identity_product=1
+\end{lstlisting}

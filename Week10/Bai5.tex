@@ -1,126 +1,486 @@
-\section{Đoạn có tổng bằng K [Trung bình]}
+\section{Text analysis pipeline [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{text.txt}
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Chứa nội dung văn bản
+    \end{itemize}
+
+    File \texttt{stopwords.txt}
+
+    \begin{itemize}
+        \item Mỗi dòng là một stop-word
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    Pipeline:
+
+\[
+\text{normalize}
+\rightarrow
+\text{tokenize}
+\rightarrow
+\text{filter stop-words}
+\rightarrow
+\text{count frequency}
+\rightarrow
+\text{top-20}
+\]
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item File text rỗng
+            \[
+                \Rightarrow total=0,\ unique=0
+            \]
+
+            \item Sau khi lọc stop-words không còn token
+            \[
+                \Rightarrow freq.csv \text{ chỉ có header}
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readText()}
+            \item Hàm \texttt{readStopWords()}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Normalize):}
+
+        \begin{itemize}
+            \item Hàm \texttt{normalize()}
+            \item Chuyển:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item ký tự hoa → thường
+                \item ký tự đặc biệt → khoảng trắng
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 3 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm \texttt{tokenize()}
+            \item Tách từ bằng \texttt{stringstream}
+        \end{itemize}
+
+        \item \textbf{Module 4 (Filter stop-words):}
+
+        \begin{itemize}
+            \item Hàm \texttt{filterStopWords()}
+            \item Loại bỏ token xuất hiện trong stop-word set
+        \end{itemize}
+
+        \item \textbf{Module 5 (Count frequency):}
+
+        \begin{itemize}
+            \item Hàm \texttt{countFreq()}
+            \item Đếm tần suất bằng \texttt{map<string,int>}
+        \end{itemize}
+
+        \item \textbf{Module 6 (Sort top-20):}
+
+        \begin{itemize}
+            \item Sắp xếp:
+            \begin{itemize}
+                \item frequency giảm dần
+                \item nếu bằng nhau → sort alphabet
+            \end{itemize}
+        \end{itemize}
+
+        \item \textbf{Module 7 (Ghi file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{writeFreq()}
+            \item Hàm \texttt{writeSummary()}
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+    File \texttt{freq.csv}
+
+\begin{lstlisting}
+word,count
+...
+\end{lstlisting}
+
+    File \texttt{summary.txt}
+
+\begin{lstlisting}
+total=<n>
+unique=<n>
+
+TOP-5
+word           count
+...
+\end{lstlisting}
+
+    Dùng:
+\begin{lstlisting}
+setw + left
+\end{lstlisting}
+
+    để căn lề bảng.
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <unordered_map>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <map>
+#include <set>
+#include <algorithm>
+#include <iomanip>
+#include <cctype>
 
-    int countRangesEqK(const vector<long long>& a, long long K, int& firstL, int& firstR) {
-        unordered_map<long long, int> freq;
-        unordered_map<long long, int> first_idx;
-        long long pre = 0;
-        int count = 0;
-        firstL = -1; firstR = -1;
-        
-        freq[0] = 1;
-        first_idx[0] = -1;
+using namespace std;
 
-        for (int i = 0; i < (int)a.size(); ++i) {
-            pre += a[i];
-            if (freq.count(pre - K)) {
-                count += freq[pre - K];
-                if (firstL == -1) {
-                    firstL = first_idx[pre - K] + 1;
-                    firstR = i;
-                }
-            }
-            freq[pre]++;
-            if (!first_idx.count(pre)) first_idx[pre] = i;
+string readText(const string& path) {
+
+    ifstream fin(path);
+
+    if (!fin) return "";
+
+    string line, text;
+
+    while (getline(fin, line)) {
+        text += line + " ";
+    }
+
+    return text;
+}
+
+set<string> readStopWords(
+    const string& path
+) {
+    ifstream fin(path);
+
+    set<string> stopWords;
+
+    string word;
+
+    while (getline(fin, word)) {
+
+        if (!word.empty()) {
+            stopWords.insert(word);
         }
-        return count;
     }
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+    return stopWords;
+}
 
-        int n; long long K;
-        fin >> n >> K;
-        vector<long long> a(n);
-        for (int i = 0; i < n; ++i) fin >> a[i];
+string normalize(const string& text) {
 
-        int firstL, firstR;
-        int count = countRangesEqK(a, K, firstL, firstR);
-        fout << "count=" << count << "\n";
-        if (count > 0) fout << "l=" << firstL << " r=" << firstR << "\n";
+    string result = text;
 
-        return 0;
+    for (size_t i = 0; i < result.size(); ++i) {
+
+        if (isalnum(result[i])) {
+            result[i] = tolower(result[i]);
+        } else {
+            result[i] = ' ';
+        }
     }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& text
+) {
+    vector<string> tokens;
+
+    stringstream ss(text);
+
+    string token;
+
+    while (ss >> token) {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+vector<string> filterStopWords(
+    const vector<string>& tokens,
+    const set<string>& stopWords
+) {
+    vector<string> filtered;
+
+    for (size_t i = 0; i < tokens.size(); ++i) {
+
+        if (!stopWords.count(tokens[i])) {
+            filtered.push_back(tokens[i]);
+        }
+    }
+
+    return filtered;
+}
+
+map<string, int> countFreq(
+    const vector<string>& tokens
+) {
+    map<string, int> freq;
+
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        ++freq[tokens[i]];
+    }
+
+    return freq;
+}
+
+vector<pair<string, int>> sortTop(
+    const map<string, int>& freq
+) {
+    vector<pair<string, int>> arr(
+        freq.begin(),
+        freq.end()
+    );
+
+    sort(
+        arr.begin(),
+        arr.end(),
+        [](const pair<string, int>& a,
+           const pair<string, int>& b) {
+
+            if (a.second != b.second) {
+                return a.second > b.second;
+            }
+
+            return a.first < b.first;
+        }
+    );
+
+    if (arr.size() > 20) {
+        arr.resize(20);
+    }
+
+    return arr;
+}
+
+bool writeFreq(
+    const string& path,
+    const vector<pair<string, int>>& topWords
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << "word,count\n";
+
+    for (size_t i = 0; i < topWords.size(); ++i) {
+
+        fout << topWords[i].first
+             << ","
+             << topWords[i].second
+             << "\n";
+    }
+
+    return true;
+}
+
+bool writeSummary(
+    const string& path,
+    int total,
+    int unique,
+    const vector<pair<string, int>>& topWords
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << "total=" << total << "\n";
+    fout << "unique=" << unique << "\n\n";
+
+    fout << "TOP-5\n";
+
+    fout << left
+         << setw(15) << "word"
+         << setw(10) << "count"
+         << "\n";
+
+    int limit =
+        min(5, (int)topWords.size());
+
+    for (int i = 0; i < limit; ++i) {
+
+        fout << left
+             << setw(15)
+             << topWords[i].first
+
+             << setw(10)
+             << topWords[i].second
+
+             << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    string text =
+        readText("text.txt");
+
+    set<string> stopWords =
+        readStopWords("stopwords.txt");
+
+    string normalized =
+        normalize(text);
+
+    vector<string> tokens =
+        tokenize(normalized);
+
+    vector<string> filtered =
+        filterStopWords(
+            tokens,
+            stopWords
+        );
+
+    map<string, int> freq =
+        countFreq(filtered);
+
+    vector<pair<string, int>> topWords =
+        sortTop(freq);
+
+    if (!writeFreq(
+        "freq.csv",
+        topWords
+    )) {
+        cerr << "Loi mo file freq!\n";
+        return 1;
+    }
+
+    if (!writeSummary(
+        "summary.txt",
+        filtered.size(),
+        freq.size(),
+        topWords
+    )) {
+        cerr << "Loi mo file summary!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (text.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+Hello world hello AI world AI AI
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Input (stopwords.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+world
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (freq.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+word,count
+ai,3
+hello,2
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Expected Output (summary.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+total=5
+unique=2
+
+TOP-5
+word           count
+ai             3
+hello          2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (File rỗng)}
+
+\textbf{Input (text.txt):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Input (stopwords.txt):}
+
+\begin{lstlisting}
+the
+is
+a
+\end{lstlisting}
+
+\textbf{Expected Output (freq.csv):}
+
+\begin{lstlisting}
+word,count
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+
+\begin{lstlisting}
+total=0
+unique=0
+
+TOP-5
+word           count
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Chỉ có stop-words)}
+
+\textbf{Input (text.txt):}
+
+\begin{lstlisting}
+the the is a is the
+\end{lstlisting}
+
+\textbf{Input (stopwords.txt):}
+
+\begin{lstlisting}
+the
+is
+a
+\end{lstlisting}
+
+\textbf{Expected Output (freq.csv):}
+
+\begin{lstlisting}
+word,count
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+
+\begin{lstlisting}
+total=0
+unique=0
+
+TOP-5
+word           count
+\end{lstlisting}

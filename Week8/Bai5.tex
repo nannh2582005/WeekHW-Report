@@ -1,126 +1,282 @@
-\section{Đoạn có tổng bằng K [Trung bình]}
+\section{Đạo hàm và đánh giá đa thức [Cơ bản]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+\begin{itemize}
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item File \texttt{polynomials.csv}: \texttt{id,degree,a0..an}
+        \item File \texttt{x\_values.csv}: mỗi dòng là một giá trị \texttt{x}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+    \begin{itemize}
+        \item \textbf{Case biên:}
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item \texttt{degree < 0} $\rightarrow$ invalid
+            \item Thiếu hệ số $\rightarrow$ gán bằng 0
+            \item \texttt{degree = 0} $\rightarrow$ đạo hàm bằng 0
+            \item \texttt{x\_values.csv} rỗng $\rightarrow$ chỉ ghi header
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Struct dữ liệu):}
+\begin{lstlisting}
+struct Poly {
+    string id;
+    int deg;
+    vector<double> a;
+};
+\end{lstlisting}
+
+        \item \textbf{Module 2 (Đọc polynomials.csv):}
+        \begin{itemize}
+            \item Chỉ lưu đa thức hợp lệ
+        \end{itemize}
+
+        \item \textbf{Module 3 (Đọc x\_values.csv):}
+        \begin{itemize}
+            \item Đọc các giá trị x
+        \end{itemize}
+
+        \item \textbf{Module 4 (Tính P(x) bằng Horner):}
+\begin{lstlisting}
+res = a[n];
+for i = n-1 downto 0:
+    res = res*x + a[i];
+\end{lstlisting}
+
+        \item \textbf{Module 5 (Tạo đa thức đạo hàm):}
+        \[
+        P(x)=a_0+a_1x+a_2x^2+\cdots+a_nx^n
+        \]
+        \[
+        P'(x)=a_1+2a_2x+\cdots+na_nx^{n-1}
+        \]
+
+        \item \textbf{Module 6 (Ghi file):}
+        \begin{itemize}
+            \item Ghi ra \texttt{deriv\_report.csv}
+            \item Định dạng:
+            \texttt{id,x,P(x),dP(x)}
+        \end{itemize}
     \end{itemize}
 
+    \item \textbf{Output:}
+\begin{lstlisting}
+deriv_report.csv
+id,x,P(x),dP(x)
+...
+\end{lstlisting}
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <unordered_map>
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <iomanip>
 
-    using namespace std;
+using namespace std;
 
-    int countRangesEqK(const vector<long long>& a, long long K, int& firstL, int& firstR) {
-        unordered_map<long long, int> freq;
-        unordered_map<long long, int> first_idx;
-        long long pre = 0;
-        int count = 0;
-        firstL = -1; firstR = -1;
-        
-        freq[0] = 1;
-        first_idx[0] = -1;
+struct Poly {
+    string id;
+    int deg;
+    vector<double> a;
+};
 
-        for (int i = 0; i < (int)a.size(); ++i) {
-            pre += a[i];
-            if (freq.count(pre - K)) {
-                count += freq[pre - K];
-                if (firstL == -1) {
-                    firstL = first_idx[pre - K] + 1;
-                    firstR = i;
-                }
-            }
-            freq[pre]++;
-            if (!first_idx.count(pre)) first_idx[pre] = i;
+bool readPolysCSV(const string& path,
+                  vector<Poly>& arr) {
+    ifstream fin(path);
+    if (!fin) return false;
+
+    string line;
+
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        stringstream ss(line);
+        vector<string> token;
+        string x;
+
+        while (getline(ss, x, ',')) {
+            token.push_back(x);
         }
-        return count;
+
+        if (token.size() < 2) continue;
+
+        Poly p;
+        p.id = token[0];
+        p.deg = atoi(token[1].c_str());
+
+        if (p.deg < 0) continue;
+
+        p.a.assign(p.deg + 1, 0);
+
+        for (int i = 0; i <= p.deg; ++i) {
+            int pos = i + 2;
+
+            if (pos < (int)token.size())
+                p.a[i] = atof(token[pos].c_str());
+            else
+                p.a[i] = 0;
+        }
+
+        arr.push_back(p);
     }
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+    return true;
+}
 
-        int n; long long K;
-        fin >> n >> K;
-        vector<long long> a(n);
-        for (int i = 0; i < n; ++i) fin >> a[i];
+bool readXValues(const string& path,
+                 vector<double>& xs) {
+    ifstream fin(path);
+    if (!fin) return false;
 
-        int firstL, firstR;
-        int count = countRangesEqK(a, K, firstL, firstR);
-        fout << "count=" << count << "\n";
-        if (count > 0) fout << "l=" << firstL << " r=" << firstR << "\n";
+    string line;
 
-        return 0;
+    while (getline(fin, line)) {
+        if (line.empty()) continue;
+
+        xs.push_back(atof(line.c_str()));
     }
+
+    return true;
+}
+
+double evalHorner(vector<double> a,
+                  double x) {
+    int n = a.size() - 1;
+
+    double res = a[n];
+
+    for (int i = n - 1; i >= 0; --i)
+        res = res * x + a[i];
+
+    return res;
+}
+
+vector<double> derivative(Poly p) {
+    vector<double> d;
+
+    if (p.deg == 0) {
+        d.push_back(0);
+        return d;
+    }
+
+    d.assign(p.deg, 0);
+
+    for (int i = 1; i <= p.deg; ++i)
+        d[i - 1] = i * p.a[i];
+
+    return d;
+}
+
+int main() {
+    vector<Poly> polys;
+    vector<double> xs;
+
+    if (!readPolysCSV("polynomials.csv",
+                      polys)) {
+        cerr << "Loi mo polynomials.csv!\n";
+        return 1;
+    }
+
+    if (!readXValues("x_values.csv",
+                     xs)) {
+        cerr << "Loi mo x_values.csv!\n";
+        return 1;
+    }
+
+    ofstream fout("deriv_report.csv");
+
+    if (!fout) {
+        cerr << "Loi mo output!\n";
+        return 1;
+    }
+
+    fout << "id,x,P(x),dP(x)\n";
+    fout << fixed << setprecision(6);
+
+    for (size_t i = 0; i < polys.size(); ++i) {
+        vector<double> d =
+            derivative(polys[i]);
+
+        for (size_t j = 0; j < xs.size(); ++j) {
+            double val =
+                evalHorner(polys[i].a, xs[j]);
+
+            double der =
+                evalHorner(d, xs[j]);
+
+            fout << polys[i].id << ","
+                 << xs[j] << ","
+                 << val << ","
+                 << der << "\n";
+        }
+    }
+
+    cout << "Done";
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+P1,2,1,2,1
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\textbf{Input (x\_values.csv):}
+\begin{lstlisting}
+2
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output (deriv\_report.csv):}
+\begin{lstlisting}
+id,x,P(x),dP(x)
+P1,2.000000,9.000000,6.000000
+\end{lstlisting}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\vspace{0.5cm}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Test Case 2 (Bậc 0)}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+A,0,5
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Input (x\_values.csv):}
+\begin{lstlisting}
+3
+\end{lstlisting}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Expected Output (deriv\_report.csv):}
+\begin{lstlisting}
+id,x,P(x),dP(x)
+A,3.000000,5.000000,0.000000
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (x rỗng)}
+
+\textbf{Input (polynomials.csv):}
+\begin{lstlisting}
+B,1,1,1
+\end{lstlisting}
+
+\textbf{Input (x\_values.csv):}
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Output (deriv\_report.csv):}
+\begin{lstlisting}
+id,x,P(x),dP(x)
+\end{lstlisting}

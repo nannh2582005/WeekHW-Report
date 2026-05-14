@@ -1,110 +1,396 @@
-\section{Tổng đoạn trung bình [Trung bình]}
+\section{Lọc stop-words [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item File \texttt{text.txt} chứa nhiều dòng văn bản ASCII
+        \item File \texttt{stopwords.txt} chứa stop-word
+        \item Mỗi dòng trong \texttt{stopwords.txt} chứa 1 từ
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
+            \item File text rỗng $\rightarrow$ tất cả thống kê bằng 0
+            \item File stopwords rỗng $\rightarrow$ giữ toàn bộ token
+            \item Dòng chỉ punctuation $\rightarrow$ bỏ qua
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 1 (Đọc text):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readLines(path, vector<string>\&)}
+            \item Kiểm tra mở file
+        \end{itemize}
+
+        \item \textbf{Module 2 (Đọc stopwords):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readStopwords(path, unordered_set<string>&)
+\end{lstlisting}
+
+            \item Lưu stop-word vào:
+\begin{lstlisting}
+unordered_set<string> stops
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 3 (Normalize chuỗi):}
+
+        \begin{itemize}
+            \item Hàm \texttt{normalizeLine(const string\& s)}
+            \item Chuyển lowercase
+            \item Ký tự không phải chữ/số $\rightarrow$ space
+            \item Gom nhiều space thành 1
+        \end{itemize}
+
+        \item \textbf{Module 4 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+vector<string> tokenize(...)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Lọc stop-word và đếm):}
+
+        \begin{itemize}
+            \item Nếu:
+\begin{lstlisting}
+stops.count(token) == 0
+\end{lstlisting}
+
+            $\rightarrow$ đưa vào thống kê
+
+            \item Dùng:
+\begin{lstlisting}
+unordered_map<string,int> freq
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 6 (Ghi output):}
+
+        \begin{itemize}
+            \item File \texttt{freq\_filtered.csv}
+            \item Format:
+\begin{lstlisting}
+word,count
+\end{lstlisting}
+
+            \item In summary:
+\begin{lstlisting}
+total_before=<n>
+total_after=<m>
+stopwords_removed=<k>
+\end{lstlisting}
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+\begin{lstlisting}
+total_before=<n>
+total_after=<m>
+stopwords_removed=<k>
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <iomanip>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <sstream>
+#include <cctype>
 
-    double rangeAverage(const vector<long long>& pre, int l, int r) {
-        long long sum = pre[r] - (l > 0 ? pre[l - 1] : 0);
-        return (double)sum / (r - l + 1);
+using namespace std;
+
+bool readLines(const string& path,
+               vector<string>& lines) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        lines.push_back(s);
     }
 
-    int main() {
-        ifstream fin_arr("array.txt"), fin_q("queries.txt");
-        ofstream fout("output.txt");
-        if (!fin_arr || !fin_q || !fout) { cerr << "Loi file!\n"; return 1; }
+    return true;
+}
 
-        int n; fin_arr >> n;
-        vector<long long> pre(n);
-        for (int i = 0; i < n; ++i) {
-            long long val; fin_arr >> val;
-            pre[i] = val + (i > 0 ? pre[i - 1] : 0);
-        }
+bool readStopwords(
+    const string& path,
+    unordered_set<string>& stops) {
 
-        fout << fixed << setprecision(6);
-        int q; fin_q >> q;
-        while (q--) {
-            int l, r; fin_q >> l >> r;
-            if (l < 0 || r >= n || l > r) fout << "INVALID\n";
-            else fout << rangeAverage(pre, l, r) << "\n";
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string word;
+
+    while (getline(fin, word)) {
+
+        if (!word.empty()) {
+
+            stops.insert(word);
         }
-        return 0;
     }
+
+    return true;
+}
+
+string normalizeLine(const string& s) {
+
+    string result;
+
+    bool lastSpace = true;
+
+    for (char c : s) {
+
+        if (isalnum((unsigned char)c)) {
+
+            result +=
+                (char)tolower((unsigned char)c);
+
+            lastSpace = false;
+        }
+        else {
+
+            if (!lastSpace) {
+
+                result += ' ';
+                lastSpace = true;
+            }
+        }
+    }
+
+    if (!result.empty() &&
+        result.back() == ' ') {
+
+        result.pop_back();
+    }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& normalized) {
+
+    vector<string> tokens;
+
+    stringstream ss(normalized);
+
+    string token;
+
+    while (ss >> token) {
+
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+bool writeFreq(
+    const string& path,
+    const unordered_map<string,int>& freq) {
+
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    for (const auto& p : freq) {
+
+        fout << p.first
+             << ","
+             << p.second
+             << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<string> lines;
+
+    if (!readLines("text.txt", lines)) {
+
+        cerr << "Loi mo file text!\n";
+        return 1;
+    }
+
+    unordered_set<string> stops;
+
+    if (!readStopwords("stopwords.txt",
+                       stops)) {
+
+        cerr << "Loi mo file stopwords!\n";
+        return 1;
+    }
+
+    unordered_map<string,int> freq;
+
+    int totalBefore = 0;
+    int totalAfter = 0;
+
+    for (const string& s : lines) {
+
+        string normalized =
+            normalizeLine(s);
+
+        vector<string> tokens =
+            tokenize(normalized);
+
+        for (const string& token : tokens) {
+
+            totalBefore++;
+
+            if (stops.count(token) == 0) {
+
+                freq[token]++;
+                totalAfter++;
+            }
+        }
+    }
+
+    int removed =
+        totalBefore - totalAfter;
+
+    if (!writeFreq("freq_filtered.csv",
+                   freq)) {
+
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    cout << "total_before="
+         << totalBefore
+         << "\n";
+
+    cout << "total_after="
+         << totalAfter
+         << "\n";
+
+    cout << "stopwords_removed="
+         << removed;
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (text.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+this is a test
+this test is simple
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Input (stopwords.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+this
+is
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (freq\_filtered.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+a,1
+test,2
+simple,1
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Expected Summary:}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+total_before=8
+total_after=4
+stopwords_removed=4
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- stopwords rỗng)}
+
+\textbf{Input (text.txt):}
+
+\begin{lstlisting}
+apple banana apple
+\end{lstlisting}
+
+\textbf{Input (stopwords.txt):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Output (freq\_filtered.csv):}
+
+\begin{lstlisting}
+apple,2
+banana,1
+\end{lstlisting}
+
+\textbf{Expected Summary:}
+
+\begin{lstlisting}
+total_before=3
+total_after=3
+stopwords_removed=0
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- file rỗng)}
+
+\textbf{Input (text.txt):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Input (stopwords.txt):}
+
+\begin{lstlisting}
+a
+the
+is
+\end{lstlisting}
+
+\textbf{Expected Output (freq\_filtered.csv):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Summary:}
+
+\begin{lstlisting}
+total_before=0
+total_after=0
+stopwords_removed=0
+\end{lstlisting}

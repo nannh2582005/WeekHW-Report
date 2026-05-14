@@ -1,117 +1,402 @@
-\section{Sliding prefix: cập nhật 1 điểm [Nâng cao]}
+\section{Phát hiện outlier IQR [Nâng cao]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
+    File \texttt{values.csv} chứa:
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item Mỗi dòng là một số thực
+        \item Không có missing
     \end{itemize}
 
     \item \textbf{Xử lý:}
-        \begin{itemize}
-            \item \textbf{Case biên:}
-            \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
-            \end{itemize}
-        \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+    \begin{itemize}
+
+        \item Sắp xếp dữ liệu tăng dần
+
+        \item Tính:
+        \[
+            Q1,\ Q3
+        \]
+
+        \item Công thức:
+        \[
+            IQR = Q3 - Q1
+        \]
+
+        \item Outlier nếu:
+        \[
+            x < Q1 - 1.5 \times IQR
+        \]
+
+        hoặc
+
+        \[
+            x > Q3 + 1.5 \times IQR
+        \]
+
     \end{itemize}
 
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
+        \begin{itemize}
+            \item File rỗng
+            \[
+                \Rightarrow
+                Q1=Q3=IQR=0
+            \]
+
+            \item Tất cả giá trị giống nhau
+            \[
+                \Rightarrow IQR=0
+            \]
+
+            \item Không có outlier
+            \[
+                \Rightarrow
+                outliers.csv \text{ chỉ có header}
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm \texttt{readValues()}
+        \end{itemize}
+
+        \item \textbf{Module 2 (Tính percentile):}
+
+        \begin{itemize}
+            \item Hàm \texttt{computeQuartile()}
+            \item Tính:
+            \[
+                Q1,\ Q3
+            \]
+        \end{itemize}
+
+        \item \textbf{Module 3 (Phát hiện outlier):}
+
+        \begin{itemize}
+            \item Hàm \texttt{detectOutliers()}
+        \end{itemize}
+
+        \item \textbf{Module 4 (Ghi outlier):}
+
+        \begin{itemize}
+            \item Hàm \texttt{writeOutliers()}
+        \end{itemize}
+
+        \item \textbf{Module 5 (Ghi summary):}
+
+        \begin{itemize}
+            \item Hàm \texttt{writeSummary()}
+        \end{itemize}
+
+    \end{itemize}
+
+    \item \textbf{Output:}
+
+    File \texttt{outliers.csv}
+
+\begin{lstlisting}
+index,value
+...
+\end{lstlisting}
+
+    File \texttt{summary.txt}
+
+\begin{lstlisting}
+Q1=<f>
+Q3=<f>
+IQR=<f>
+n_outliers=<n>
+\end{lstlisting}
+
+    Dùng:
+\begin{lstlisting}
+setprecision(6)
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
 
-    void rebuildPrefix(const vector<long long>& a, vector<long long>& pre) {
-        if (a.empty()) return;
-        pre[0] = a[0];
-        for (size_t i = 1; i < a.size(); ++i) pre[i] = pre[i - 1] + a[i];
+using namespace std;
+
+bool readValues(
+    const string& path,
+    vector<double>& values
+) {
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    double x;
+
+    while (fin >> x) {
+        values.push_back(x);
     }
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+    return true;
+}
 
-        int n; fin >> n;
-        vector<long long> a(n), pre(n);
-        for (int i = 0; i < n; ++i) fin >> a[i];
-        rebuildPrefix(a, pre);
+double computeQuartile(
+    vector<double> sorted,
+    double q
+) {
+    if (sorted.empty()) return 0;
 
-        int q; fin >> q;
-        while (q--) {
-            char type; fin >> type;
-            if (type == 'U') {
-                int i; long long val;
-                fin >> i >> val;
-                if (i >= 0 && i < n) {
-                    a[i] = val;
-                    rebuildPrefix(a, pre);
-                }
-            } else if (type == 'Q') {
-                int l, r; fin >> l >> r;
-                if (l < 0 || r >= n || l > r) fout << "INVALID\n";
-                else fout << pre[r] - (l > 0 ? pre[l - 1] : 0) << "\n";
-            }
+    double pos =
+        q * (sorted.size() - 1);
+
+    int left = (int)pos;
+
+    int right = left + 1;
+
+    if (right >= (int)sorted.size()) {
+        return sorted[left];
+    }
+
+    double frac = pos - left;
+
+    return sorted[left]
+           +
+           frac
+           *
+           (sorted[right] - sorted[left]);
+}
+
+vector<pair<int, double>> detectOutliers(
+    const vector<double>& values,
+    double Q1,
+    double Q3
+) {
+    vector<pair<int, double>> outliers;
+
+    double IQR = Q3 - Q1;
+
+    double lower =
+        Q1 - 1.5 * IQR;
+
+    double upper =
+        Q3 + 1.5 * IQR;
+
+    for (size_t i = 0; i < values.size(); ++i) {
+
+        if (values[i] < lower
+            || values[i] > upper) {
+
+            outliers.push_back(
+                {i, values[i]}
+            );
         }
-        return 0;
     }
+
+    return outliers;
+}
+
+bool writeOutliers(
+    const string& path,
+    const vector<pair<int, double>>& outliers
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed << setprecision(6);
+
+    fout << "index,value\n";
+
+    for (size_t i = 0; i < outliers.size(); ++i) {
+
+        fout << outliers[i].first
+             << ","
+             << outliers[i].second
+             << "\n";
+    }
+
+    return true;
+}
+
+bool writeSummary(
+    const string& path,
+    double Q1,
+    double Q3,
+    double IQR,
+    int nOutliers
+) {
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    fout << fixed << setprecision(6);
+
+    fout << "Q1=" << Q1 << "\n";
+
+    fout << "Q3=" << Q3 << "\n";
+
+    fout << "IQR=" << IQR << "\n";
+
+    fout << "n_outliers="
+         << nOutliers
+         << "\n";
+
+    return true;
+}
+
+int main() {
+
+    vector<double> values;
+
+    if (!readValues(
+        "values.csv",
+        values
+    )) {
+        cerr << "Loi mo file input!\n";
+        return 1;
+    }
+
+    vector<double> sorted =
+        values;
+
+    sort(
+        sorted.begin(),
+        sorted.end()
+    );
+
+    double Q1 =
+        computeQuartile(sorted, 0.25);
+
+    double Q3 =
+        computeQuartile(sorted, 0.75);
+
+    double IQR =
+        Q3 - Q1;
+
+    vector<pair<int, double>> outliers =
+        detectOutliers(
+            values,
+            Q1,
+            Q3
+        );
+
+    if (!writeOutliers(
+        "outliers.csv",
+        outliers
+    )) {
+        cerr << "Loi mo file outlier!\n";
+        return 1;
+    }
+
+    if (!writeSummary(
+        "summary.txt",
+        Q1,
+        Q3,
+        IQR,
+        outliers.size()
+    )) {
+        cerr << "Loi mo file summary!\n";
+        return 1;
+    }
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Có outlier)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (values.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+10
+11
+12
+13
+14
+100
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Expected Output (outliers.csv):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+index,value
+5,100.000000
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (summary.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+Q1=11.250000
+Q3=13.750000
+IQR=2.500000
+n_outliers=1
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\vspace{0.5cm}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\textbf{Test Case 2 (Không có outlier)}
+
+\textbf{Input (values.csv):}
+
+\begin{lstlisting}
+1
+2
+3
+4
+5
+\end{lstlisting}
+
+\textbf{Expected Output (outliers.csv):}
+
+\begin{lstlisting}
+index,value
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+
+\begin{lstlisting}
+Q1=2.000000
+Q3=4.000000
+IQR=2.000000
+n_outliers=0
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (File rỗng)}
+
+\textbf{Input (values.csv):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Expected Output (outliers.csv):}
+
+\begin{lstlisting}
+index,value
+\end{lstlisting}
+
+\textbf{Expected Output (summary.txt):}
+
+\begin{lstlisting}
+Q1=0.000000
+Q3=0.000000
+IQR=0.000000
+n_outliers=0
+\end{lstlisting}

@@ -1,126 +1,444 @@
-\section{Đoạn có tổng bằng K [Trung bình]}
+\section{So sánh 2 file văn bản [Trung bình]}
 \subsection{Phân tích \& Thiết kế (M0)}
-    \begin{itemize}
+
+\begin{itemize}
+
     \item \textbf{Input:}
-    File \texttt{array.txt} chứa:
+
     \begin{itemize}
-        \item Số nguyên $n$
-        \item $n$ số thực
+        \item File \texttt{file1.txt}
+        \item File \texttt{file2.txt}
     \end{itemize}
 
     \item \textbf{Xử lý:}
+
+    \begin{itemize}
+
+        \item \textbf{Case biên:}
+
         \begin{itemize}
-            \item \textbf{Case biên:}
+            \item Một file rỗng $\rightarrow$ toàn bộ từ nằm ở file còn lại
+            \item Hai file giống hệt nhau
+            $\rightarrow$
+            only\_in\_1=0, only\_in\_2=0
+            \item Dòng chỉ punctuation $\rightarrow$ bỏ qua
+        \end{itemize}
+
+        \item \textbf{Module 1 (Đọc file):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+readLines(path, vector<string>&)
+\end{lstlisting}
+
+            \item Kiểm tra mở file
+        \end{itemize}
+
+        \item \textbf{Module 2 (Normalize chuỗi):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+normalizeLine(const string& s)
+\end{lstlisting}
+
+            \item Chuyển lowercase
+            \item Ký tự không phải chữ/số $\rightarrow$ space
+            \item Gom nhiều space thành 1
+        \end{itemize}
+
+        \item \textbf{Module 3 (Tokenize):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+vector<string> tokenize(...)
+\end{lstlisting}
+        \end{itemize}
+
+        \item \textbf{Module 4 (Đếm tần suất):}
+
+        \begin{itemize}
+            \item Dùng:
+\begin{lstlisting}
+unordered_map<string,int>
+\end{lstlisting}
+
+            cho mỗi file
+        \end{itemize}
+
+        \item \textbf{Module 5 (Merge và so sánh):}
+
+        \begin{itemize}
+            \item Hàm:
+\begin{lstlisting}
+mergeFreq(map1, map2, output)
+\end{lstlisting}
+
+            \item Duyệt tất cả key của 2 map
+            \item Xác định:
             \begin{itemize}
-                \item $n = 0 \rightarrow$ in \texttt{EMPTY}
-                \item $n = 1 \rightarrow \min = \max = \text{mean} = a[0]$
-            \end{itemize}
-            
-            \item \textbf{Module 1 (Đọc file):}
-            \begin{itemize}
-                \item Hàm \texttt{readArray(path, vector<double>\&)}
-                \item Kiểm tra mở file (\text{fail} $\rightarrow$ \texttt{cerr} + \texttt{return false})
-            \end{itemize}
-            
-            \item \textbf{Module 2 (Tính mean):}
-            \begin{itemize}
-                \item Dùng \texttt{long double} để tránh sai số
-            \end{itemize}
-            
-            \item \textbf{Module 3 (Tìm min, max):}
-            \begin{itemize}
-                \item Duyệt mảng 1 lần
+                \item Chỉ có ở file1
+                \item Chỉ có ở file2
+                \item Có ở cả 2
             \end{itemize}
         \end{itemize}
 
-        \item \textbf{Output:}
-        \begin{lstlisting}
-            min=<f> / max=<f> / mean=<f>\end{lstlisting} 
-        (với \texttt{setprecision(4)})
+        \item \textbf{Module 6 (Ghi output):}
+
+        \begin{itemize}
+            \item Ghi file:
+\begin{lstlisting}
+comparison.csv
+\end{lstlisting}
+
+            \item Format:
+\begin{lstlisting}
+word,count_file1,count_file2
+\end{lstlisting}
+
+            \item In summary:
+\begin{lstlisting}
+only_in_1=<n>
+only_in_2=<m>
+in_both=<k>
+\end{lstlisting}
+        \end{itemize}
+
     \end{itemize}
 
+    \item \textbf{Output:}
+
+\begin{lstlisting}
+only_in_1=<n>
+only_in_2=<m>
+in_both=<k>
+\end{lstlisting}
+
+\end{itemize}
+
 \subsection{Mã nguồn C++11 (Tách module)}
-    \begin{lstlisting}
-    #include <iostream>
-    #include <vector>
-    #include <fstream>
-    #include <unordered_map>
 
-    using namespace std;
+\begin{lstlisting}
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <sstream>
+#include <cctype>
 
-    int countRangesEqK(const vector<long long>& a, long long K, int& firstL, int& firstR) {
-        unordered_map<long long, int> freq;
-        unordered_map<long long, int> first_idx;
-        long long pre = 0;
-        int count = 0;
-        firstL = -1; firstR = -1;
-        
-        freq[0] = 1;
-        first_idx[0] = -1;
+using namespace std;
 
-        for (int i = 0; i < (int)a.size(); ++i) {
-            pre += a[i];
-            if (freq.count(pre - K)) {
-                count += freq[pre - K];
-                if (firstL == -1) {
-                    firstL = first_idx[pre - K] + 1;
-                    firstR = i;
-                }
-            }
-            freq[pre]++;
-            if (!first_idx.count(pre)) first_idx[pre] = i;
+struct Row {
+    string word;
+    int count1;
+    int count2;
+};
+
+bool readLines(const string& path,
+               vector<string>& lines) {
+
+    ifstream fin(path);
+
+    if (!fin) return false;
+
+    string s;
+
+    while (getline(fin, s)) {
+
+        lines.push_back(s);
+    }
+
+    return true;
+}
+
+string normalizeLine(const string& s) {
+
+    string result;
+
+    bool lastSpace = true;
+
+    for (char c : s) {
+
+        if (isalnum((unsigned char)c)) {
+
+            result +=
+                (char)tolower((unsigned char)c);
+
+            lastSpace = false;
         }
-        return count;
+        else {
+
+            if (!lastSpace) {
+
+                result += ' ';
+                lastSpace = true;
+            }
+        }
     }
 
-    int main() {
-        ifstream fin("input.txt");
-        ofstream fout("output.txt");
-        if (!fin || !fout) { cerr << "Loi file!\n"; return 1; }
+    if (!result.empty() &&
+        result.back() == ' ') {
 
-        int n; long long K;
-        fin >> n >> K;
-        vector<long long> a(n);
-        for (int i = 0; i < n; ++i) fin >> a[i];
-
-        int firstL, firstR;
-        int count = countRangesEqK(a, K, firstL, firstR);
-        fout << "count=" << count << "\n";
-        if (count > 0) fout << "l=" << firstL << " r=" << firstR << "\n";
-
-        return 0;
+        result.pop_back();
     }
+
+    return result;
+}
+
+vector<string> tokenize(
+    const string& normalized) {
+
+    vector<string> tokens;
+
+    stringstream ss(normalized);
+
+    string token;
+
+    while (ss >> token) {
+
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+unordered_map<string,int>
+buildFreq(const vector<string>& lines) {
+
+    unordered_map<string,int> freq;
+
+    for (const string& s : lines) {
+
+        string normalized =
+            normalizeLine(s);
+
+        vector<string> tokens =
+            tokenize(normalized);
+
+        for (const string& token : tokens) {
+
+            freq[token]++;
+        }
+    }
+
+    return freq;
+}
+
+void mergeFreq(
+    const unordered_map<string,int>& map1,
+    const unordered_map<string,int>& map2,
+    vector<Row>& output,
+    int& only1,
+    int& only2,
+    int& both) {
+
+    unordered_set<string> allWords;
+
+    for (const auto& p : map1) {
+
+        allWords.insert(p.first);
+    }
+
+    for (const auto& p : map2) {
+
+        allWords.insert(p.first);
+    }
+
+    only1 = 0;
+    only2 = 0;
+    both = 0;
+
+    for (const string& word : allWords) {
+
+        int c1 = 0;
+        int c2 = 0;
+
+        auto it1 = map1.find(word);
+
+        if (it1 != map1.end()) {
+            c1 = it1->second;
+        }
+
+        auto it2 = map2.find(word);
+
+        if (it2 != map2.end()) {
+            c2 = it2->second;
+        }
+
+        if (c1 > 0 && c2 == 0)
+            only1++;
+
+        else if (c1 == 0 && c2 > 0)
+            only2++;
+
+        else
+            both++;
+
+        output.push_back({word, c1, c2});
+    }
+}
+
+bool writeComparison(
+    const string& path,
+    const vector<Row>& rows) {
+
+    ofstream fout(path);
+
+    if (!fout) return false;
+
+    for (const Row& r : rows) {
+
+        fout << r.word
+             << ","
+             << r.count1
+             << ","
+             << r.count2
+             << "\n";
+    }
+
+    return true;
+}
+
+int main() {
+
+    vector<string> lines1;
+    vector<string> lines2;
+
+    if (!readLines("file1.txt", lines1)) {
+
+        cerr << "Loi mo file1!\n";
+        return 1;
+    }
+
+    if (!readLines("file2.txt", lines2)) {
+
+        cerr << "Loi mo file2!\n";
+        return 1;
+    }
+
+    unordered_map<string,int> freq1 =
+        buildFreq(lines1);
+
+    unordered_map<string,int> freq2 =
+        buildFreq(lines2);
+
+    vector<Row> rows;
+
+    int only1, only2, both;
+
+    mergeFreq(freq1,
+              freq2,
+              rows,
+              only1,
+              only2,
+              both);
+
+    if (!writeComparison(
+            "comparison.csv",
+            rows)) {
+
+        cerr << "Loi mo file output!\n";
+        return 1;
+    }
+
+    cout << "only_in_1="
+         << only1
+         << "\n";
+
+    cout << "only_in_2="
+         << only2
+         << "\n";
+
+    cout << "in_both="
+         << both;
+
+    return 0;
+}
 \end{lstlisting}
 
 \subsection{Kế hoạch kiểm thử (Test Cases)}
 
-    \textbf{Test Case 1 (Thông thường)}
+\textbf{Test Case 1 (Thông thường)}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    5 10.5 -2.0 4.0 0.0 5.5\end{lstlisting}
+\textbf{Input (file1.txt):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=-2.0000 / max=10.5000 / mean=3.6000\end{lstlisting}
+\begin{lstlisting}
+apple banana apple
+orange
+\end{lstlisting}
 
-    \vspace{0.5cm}
+\textbf{Input (file2.txt):}
 
-    \textbf{Test Case 2 (Case biên -- n=0)}
+\begin{lstlisting}
+banana grape
+apple grape
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    0\end{lstlisting}
+\textbf{Expected Output (comparison.csv):}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    EMPTY\end{lstlisting}
-    \textbf{Test Case 3 (Case biên -- n=1)}
+\begin{lstlisting}
+apple,2,1
+banana,1,1
+orange,1,0
+grape,0,2
+\end{lstlisting}
 
-    \textbf{Input (array.txt):}
-    \begin{lstlisting}
-    1 42.5\end{lstlisting}
+\textbf{Expected Summary:}
 
-    \textbf{Expected Output:}
-    \begin{lstlisting}
-    min=42.5000 / max=42.5000 / mean=42.5000\end{lstlisting}
+\begin{lstlisting}
+only_in_1=1
+only_in_2=1
+in_both=2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 2 (Case biên -- hai file giống nhau)}
+
+\textbf{Input (file1.txt):}
+
+\begin{lstlisting}
+hello world
+\end{lstlisting}
+
+\textbf{Input (file2.txt):}
+
+\begin{lstlisting}
+hello world
+\end{lstlisting}
+
+\textbf{Expected Summary:}
+
+\begin{lstlisting}
+only_in_1=0
+only_in_2=0
+in_both=2
+\end{lstlisting}
+
+\vspace{0.5cm}
+
+\textbf{Test Case 3 (Case biên -- file rỗng)}
+
+\textbf{Input (file1.txt):}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\textbf{Input (file2.txt):}
+
+\begin{lstlisting}
+test data
+\end{lstlisting}
+
+\textbf{Expected Summary:}
+
+\begin{lstlisting}
+only_in_1=0
+only_in_2=2
+in_both=0
+\end{lstlisting}
